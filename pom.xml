@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<artifactId>pom-scijava-base</artifactId>
+		<groupId>org.scijava</groupId>
+		<version>12.0.0</version>
+	</parent>
+
+	<groupId>fr.igred</groupId>
+	<artifactId>omeroXT</artifactId>
+	<version>1.0.0</version>
+
+	<name>omeroXT</name>
+	<description>ImageJ plugin to batch process images from OMERO.</description>
+	<url>https://github.com/GReD-Clermont/omeroXT</url>
+	<inceptionYear>2021</inceptionYear>
+
+	<organization>
+		<name>GReD</name>
+	</organization>
+
+	<licenses>
+		<license>
+			<name>GNU General Public License v2+</name>
+			<url>https://www.gnu.org/licenses/gpl-2.0.txt</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<developers>
+		<developer>
+			<id>ppouchin</id>
+			<name>Pierre Pouchin</name>
+			<email>pierre.pouchin@uca.fr</email>
+			<url>https://www.gred-clermont.fr/directory/member/pierre-pouchin/</url>
+			<organization>GReD (INSERM U1103 / CNRS UMR 6293 / UCA)</organization>
+			<organizationUrl>https://www.gred-clermont.fr</organizationUrl>
+			<roles>
+				<role>lead</role>
+				<role>developer</role>
+				<role>maintainer</role>
+			</roles>
+			<timezone>Europe/Paris</timezone>
+		</developer>
+	</developers>
+
+	<contributors>
+		<contributor>
+			<name>Pierre Pouchin</name>
+			<email>pierre.pouchin@uca.fr</email>
+		</contributor>
+	</contributors>
+
+	<mailingLists>
+		<mailingList>
+			<name>Image.sc Forum</name>
+			<archive>https://forum.image.sc/tag/omero</archive>
+		</mailingList>
+	</mailingLists>
+
+	<scm>
+		<connection>scm:git:git://github.com/GReD-Clermont/omeroXT</connection>
+		<developerConnection>scm:git:git@github.com:GReD-Clermont/omeroXT</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/GReD-Clermont/omeroXT</url>
+	</scm>
+	<issueManagement>
+		<system>GitHub Issues</system>
+		<url>https://github.com/GReD-Clermont/omeroXT/issues</url>
+	</issueManagement>
+	<ciManagement>
+		<system>GitHub Actions</system>
+		<url>https://github.com/GReD-Clermont/omeroXT/actions</url>
+	</ciManagement>
+	<distributionManagement>
+		<repository>
+			<id>github</id>
+			<name>GitHub GReD-Clermont Apache Maven Packages</name>
+			<url>https://maven.pkg.github.com/GReD-Clermont/omeroXT</url>
+		</repository>
+	</distributionManagement>
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<maven.compiler.source>8</maven.compiler.source>
+		<maven.compiler.target>8</maven.compiler.target>
+		<license.licenseName>gpl_v2</license.licenseName>
+		<license.copyrightOwners>GReD</license.copyrightOwners>
+		<allowedDuplicateClasses>
+			com.esotericsoftware.kryo.*,com.esotericsoftware.minlog.*,com.esotericsoftware.reflectasm.*,Ice*
+		</allowedDuplicateClasses>
+		<soc.version>5.8.3</soc.version>
+	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>fr.igred</groupId>
+				<artifactId>simple-omero-client</artifactId>
+				<version>${soc.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>com.bitplane</groupId>
+				<artifactId>imaris-lib</artifactId>
+				<version>9.7.2</version>
+				<scope>provided</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<dependencies>
+		<dependency>
+			<groupId>fr.igred</groupId>
+			<artifactId>simple-omero-client</artifactId>
+			<version>${soc.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.bitplane</groupId>
+			<artifactId>imaris-lib</artifactId>
+		</dependency>
+	</dependencies>
+
+	<repositories>
+		<repository>
+			<id>imagej.public</id>
+			<url>https://maven.imagej.net/content/groups/public</url>
+		</repository>
+		<repository>
+			<id>gred-releases</id>
+			<url>https://artifacts.igred.fr/releases</url>
+		</repository>
+	</repositories>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<version>3.1.2</version>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<version>2.6</version>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<descriptorRefs>
+						<descriptorRef>jar-with-dependencies</descriptorRef>
+					</descriptorRefs>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>0.8.6</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>report</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-site-plugin</artifactId>
+				<version>3.7.1</version>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-project-info-reports-plugin</artifactId>
+				<version>3.0.0</version>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-source-plugin</artifactId>
+				<version>3.2.1</version>
+				<executions>
+					<execution>
+						<id>attach-sources</id>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<version>3.2.0</version>
+				<executions>
+					<execution>
+						<id>attach-javadocs</id>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+	<reporting>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<version>3.2.0</version>
+			</plugin>
+		</plugins>
+	</reporting>
+
+</project>
