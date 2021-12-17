@@ -156,6 +156,11 @@
 					</execution>
 				</executions>
 				<configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>fr.igred.imaris.gui.OMEROXT</mainClass>
+                        </manifest>
+                    </archive>
 					<descriptorRefs>
 						<descriptorRef>jar-with-dependencies</descriptorRef>
 					</descriptorRefs>
