@@ -171,8 +171,10 @@ public final class Image2Imaris {
             imarisDataset.SetExtendMinZ(minZ);
             imarisDataset.SetExtendMaxZ(maxZ);
             imarisDataset.SetUnit(unit);
+            String date = image.getAcquisitionDate().toString();
+            imarisDataset.SetParameter("Image", "RecordingDate", date);
+            imarisDataset.SetTimePoint(0, date);
             // TODO: Fix time
-            imarisDataset.SetTimePoint(0, image.getAcquisitionDate().toString());
             imarisDataset.SetTimePointsDelta(delta);
         } catch (Error e) {
             LOGGER.warning(e.getMessage());
