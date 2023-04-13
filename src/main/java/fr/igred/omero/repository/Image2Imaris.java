@@ -1,8 +1,8 @@
 package fr.igred.omero.repository;
 
 import Imaris.Error;
+import Imaris.IApplicationPrx;
 import Imaris.IDataSetPrx;
-import com.bitplane.xt.BPImarisLib;
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.OMEROServerError;
@@ -29,10 +29,7 @@ public final class Image2Imaris {
     }
 
 
-    public static void createImarisDataset(Client client, ImageWrapper image, int imarisID) {
-        BPImarisLib imarisLib = new BPImarisLib();
-        ImarisServer.IServerPrx vServer = imarisLib.GetServer();
-        Imaris.IApplicationPrx vImarisApplication = Imaris.IApplicationPrxHelper.checkedCast(vServer.GetObject(imarisID));
+    public static void createImarisDataset(Client client, ImageWrapper image, IApplicationPrx app) {
         PixelsWrapper pix = image.getPixels();
         int sizeX = pix.getSizeX();
         int sizeY = pix.getSizeY();
@@ -46,7 +43,7 @@ public final class Image2Imaris {
         else if ("uint16".equals(pixType)) type = eTypeUInt16;
 
         try {
-            IDataSetPrx dataset = vImarisApplication.GetFactory().CreateDataSet();
+            IDataSetPrx dataset = app.GetFactory().CreateDataSet();
             dataset.Create(type, sizeX, sizeY, sizeZ, sizeC, sizeT);
             setChannels(client, image, dataset);
             setSpacing(client, image, dataset);
@@ -61,7 +58,7 @@ public final class Image2Imaris {
                 }
             }
             if (created) pix.destroyRawDataFacility();
-            vImarisApplication.SetDataSet(dataset);
+            app.SetDataSet(dataset);
         } catch (Error | AccessException | ExecutionException e) {
             LOGGER.warning(e.getMessage());
         }

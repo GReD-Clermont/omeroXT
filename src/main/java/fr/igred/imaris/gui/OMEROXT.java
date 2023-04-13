@@ -22,11 +22,11 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.WindowConstants;
 import java.awt.Color;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.event.ActionEvent;
 import java.awt.event.ItemEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -71,18 +71,14 @@ public class OMEROXT extends JFrame implements Runnable {
 	private final JComboBox<String> imageListIn = new JComboBox<>();
 	private final JCheckBox loadROIs = new JCheckBox("Load ROIs ");
 
-	private final JComboBox<String> projectListOut = new JComboBox<>();
-	private final JComboBox<String> datasetListOut = new JComboBox<>();
-
 	//variables to keep
+	private final transient BPImarisLib imarisLib = new BPImarisLib();
 	private transient Client client;
 	private transient List<GroupWrapper> groups;
 	private transient List<ProjectWrapper> groupProjects;
 	private transient List<ProjectWrapper> userProjects;
 	private transient List<DatasetWrapper> userDatasets;
 	private transient List<ImageWrapper> userImages;
-	private transient List<ProjectWrapper> myProjects;
-	private transient List<DatasetWrapper> myDatasets;
 	private transient List<ExperimenterWrapper> users;
 	private transient ExperimenterWrapper exp;
 
@@ -92,6 +88,7 @@ public class OMEROXT extends JFrame implements Runnable {
 	 */
 	public OMEROXT() {
 		super("OMERO XT");
+		super.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
 		final int width = 720;
 		final int height = 640;
@@ -124,13 +121,18 @@ public class OMEROXT extends JFrame implements Runnable {
 		JPanel imaris = new JPanel();
 		JLabel labelImaris = new JLabel("Imaris instance: ");
 		JButton refreshImaris = new JButton("Refresh");
-        refreshImaris.addActionListener(e -> refreshImaris());
+		refreshImaris.addActionListener(e -> refreshImaris());
 		labelImaris.setLabelFor(imarisList);
 		imaris.add(labelImaris);
 		imaris.add(imarisList);
 		imaris.add(refreshImaris);
-        cp.add(imaris);
 		refreshImaris();
+
+		JPanel panelImaris = new JPanel();
+		panelImaris.add(imaris);
+		panelImaris.setLayout(new BoxLayout(panelImaris, BoxLayout.PAGE_AXIS));
+		panelImaris.setBorder(BorderFactory.createTitledBorder("Imaris"));
+		cp.add(panelImaris);
 
 		JPanel connection = new JPanel();
 		JLabel labelConnection = new JLabel("Connection status: ");
@@ -199,35 +201,6 @@ public class OMEROXT extends JFrame implements Runnable {
 		panelInput.setLayout(new BoxLayout(panelInput, BoxLayout.PAGE_AXIS));
 		panelInput.setBorder(BorderFactory.createTitledBorder("Input"));
 		cp.add(panelInput);
-
-
-		JLabel labelProjectOut = new JLabel(projectName);
-		JLabel labelDatasetOut = new JLabel(datasetName);
-		labelProjectOut.setLabelFor(projectListOut);
-		labelDatasetOut.setLabelFor(datasetListOut);
-		// existing dataset
-		JPanel output = new JPanel();
-		output.add(labelProjectOut);
-		output.add(projectListOut);
-		output.add(Box.createRigidArea(smallHorizontal));
-		output.add(labelDatasetOut);
-		output.add(datasetListOut);
-		output.add(Box.createRigidArea(smallHorizontal));
-		JButton newDatasetBtn = new JButton("New");
-		output.add(newDatasetBtn);
-		projectListOut.addItemListener(this::updateOutputProject);
-		datasetListOut.addItemListener(this::updateOutputDataset);
-		newDatasetBtn.addActionListener(this::createNewDataset);
-		output.setVisible(true);
-		projectListOut.setFont(listFont);
-		datasetListOut.setFont(listFont);
-
-		// choice of output
-		JPanel panelOutput = new JPanel();
-		panelOutput.add(output);
-		panelOutput.setLayout(new BoxLayout(panelOutput, BoxLayout.PAGE_AXIS));
-		panelOutput.setBorder(BorderFactory.createTitledBorder("Output"));
-		cp.add(panelOutput);
 
 		cp.setLayout(new BoxLayout(cp, BoxLayout.PAGE_AXIS));
 		cp.setVisible(true);
@@ -308,7 +281,6 @@ public class OMEROXT extends JFrame implements Runnable {
 
 
     private void refreshImaris() {
-        BPImarisLib imarisLib = new BPImarisLib();
         ImarisServer.IServerPrx vServer = imarisLib.GetServer();
         int nImaris = 0;
 		if (vServer != null) {
@@ -336,9 +308,6 @@ public class OMEROXT extends JFrame implements Runnable {
 										.filter(project -> project.getOwner().getId() == userId)
 										.collect(Collectors.toList());
 		}
-		myProjects = groupProjects.stream()
-								  .filter(project -> project.getOwner().getId() == exp.getId())
-								  .collect(Collectors.toList());
 	}
 
 
@@ -400,89 +369,6 @@ public class OMEROXT extends JFrame implements Runnable {
 
 
 	/**
-	 * Updates the display when the output dataset is changed.
-	 *
-	 * @param e The event triggering this.
-	 */
-	private void updateOutputDataset(ItemEvent e) {
-		this.repack();
-	}
-
-
-	/**
-	 * Updates the display when the output project is changed.
-	 *
-	 * @param e The event triggering this.
-	 */
-	private void updateOutputProject(ItemEvent e) {
-		if (e.getStateChange() == ItemEvent.SELECTED) {
-			Object source = e.getSource();
-			if (source instanceof JComboBox<?>) {
-				int index = ((JComboBox<?>) source).getSelectedIndex();
-				ProjectWrapper project = myProjects.get(index);
-				this.myDatasets = project.getDatasets();
-				this.myDatasets.sort(Comparator.comparing(DatasetWrapper::getName, String.CASE_INSENSITIVE_ORDER));
-				datasetListOut.removeAllItems();
-				int padName = getListPadding(myDatasets, d -> d.getName().length());
-				int padId = getListPadding(myDatasets, g -> (int) (StrictMath.log10(g.getId()))) + 1;
-				for (DatasetWrapper d : this.myDatasets) {
-					datasetListOut.addItem(format(d.getName(), d.getId(), padName, padId));
-				}
-				if (!this.userDatasets.isEmpty()) datasetListOut.setSelectedIndex(0);
-			}
-		}
-	}
-
-
-	/**
-	 * Creates a new dataset and updates the display.
-	 *
-	 * @param e The event triggering this.
-	 */
-	private void createNewDataset(ActionEvent e) {
-		int index = projectListOut.getSelectedIndex();
-		ProjectWrapper project = myProjects.get(index);
-		long id = -1;
-		String name = (String) JOptionPane.showInputDialog(this,
-														   "New dataset name:",
-														   "Create a new dataset",
-														   JOptionPane.QUESTION_MESSAGE,
-														   null,
-														   null,
-														   null);
-		if (name == null) return;
-		try {
-			DatasetWrapper newDataset = project.addDataset(client, name, "");
-			id = newDataset.getId();
-		} catch (ExecutionException | ServiceException | AccessException exception) {
-			warningWindow("Could not create dataset: " + exception.getMessage());
-		}
-		projectListOut.setSelectedIndex(-1);
-		projectListOut.setSelectedIndex(index);
-		boolean searchOut = true;
-		for (int i = 0; searchOut && i < myDatasets.size(); i++) {
-			if (myDatasets.get(i).getId() == id) {
-				datasetListOut.setSelectedIndex(i);
-				searchOut = false;
-			}
-		}
-
-		int inputProject = projectListIn.getSelectedIndex();
-		projectListIn.setSelectedIndex(-1);
-		projectListIn.setSelectedIndex(inputProject);
-
-		boolean searchIn = true;
-		long inputDatasetID = userDatasets.get(datasetListIn.getSelectedIndex()).getId();
-		for (int i = 0; searchIn && i < userDatasets.size(); i++) {
-			if (userDatasets.get(i).getId() == inputDatasetID) {
-				datasetListIn.setSelectedIndex(i);
-				searchIn = false;
-			}
-		}
-	}
-
-
-	/**
 	 * Updates the display when the selected user is changed.
 	 *
 	 * @param e The event triggering this.
@@ -495,21 +381,13 @@ public class OMEROXT extends JFrame implements Runnable {
 			if (index >= 1) userId = users.get(index - 1).getId();
 			userProjectsAndDatasets(username, userId);
 			projectListIn.removeAllItems();
-			projectListOut.removeAllItems();
 			datasetListIn.removeAllItems();
-			datasetListOut.removeAllItems();
 			int padName = getListPadding(userProjects, p -> p.getName().length());
 			int padId = getListPadding(userProjects, g -> (int) (StrictMath.log10(g.getId()))) + 1;
 			for (ProjectWrapper project : userProjects) {
 				projectListIn.addItem(format(project.getName(), project.getId(), padName, padId));
 			}
-			int padMyName = getListPadding(myProjects, p -> p.getName().length());
-			int padMyId = getListPadding(myProjects, g -> (int) (StrictMath.log10(g.getId()))) + 1;
-			for (ProjectWrapper project : myProjects) {
-				projectListOut.addItem(format(project.getName(), project.getId(), padMyName, padMyId));
-			}
 			if (!userProjects.isEmpty()) projectListIn.setSelectedIndex(0);
-			if (!myProjects.isEmpty()) projectListOut.setSelectedIndex(0);
 		}
 	}
 
@@ -570,7 +448,6 @@ public class OMEROXT extends JFrame implements Runnable {
 		OMEROConnectDialog connectDialog = new OMEROConnectDialog();
 		connectDialog.connect(client);
 		if (!connectDialog.wasCancelled()) {
-
 			long groupId = client.getCurrentGroupId();
 
 			try {
@@ -619,9 +496,7 @@ public class OMEROXT extends JFrame implements Runnable {
 		groupList.removeAllItems();
 		userList.removeAllItems();
 		projectListIn.removeAllItems();
-		projectListOut.removeAllItems();
 		datasetListIn.removeAllItems();
-		datasetListOut.removeAllItems();
 		imageListIn.removeAllItems();
 	}
 
@@ -634,7 +509,10 @@ public class OMEROXT extends JFrame implements Runnable {
 		int index = imageListIn.getSelectedIndex();
 		if (index >= 0) {
 			ImageWrapper image = userImages.get(index);
-			createImarisDataset(client, image, imarisList.getItemAt(imarisList.getSelectedIndex()));
+			int imarisID = imarisList.getItemAt(imarisList.getSelectedIndex());
+			ImarisServer.IServerPrx vServer = imarisLib.GetServer();
+			Imaris.IApplicationPrx vImarisApplication = Imaris.IApplicationPrxHelper.checkedCast(vServer.GetObject(imarisID));
+			createImarisDataset(client, image, vImarisApplication);
 		}
 	}
 
@@ -665,14 +543,14 @@ public class OMEROXT extends JFrame implements Runnable {
 
 	private class ClientDisconnector extends WindowAdapter {
 
-		ClientDisconnector() {
-			super();
-		}
+		ClientDisconnector() {}
 
 
+		@SuppressWarnings("SyntheticAccessorCall")
 		@Override
 		public void windowClosing(WindowEvent e) {
 			super.windowClosing(e);
+			imarisLib.Disconnect();
 			Client c = client;
 			if (c != null) c.disconnect();
 		}
