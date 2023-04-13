@@ -1,5 +1,6 @@
 package fr.igred.imaris.gui;
 
+import com.bitplane.xt.BPImarisLib;
 import fr.igred.omero.Client;
 import fr.igred.omero.GenericObjectWrapper;
 import fr.igred.omero.exception.AccessException;
@@ -57,6 +58,9 @@ public class OMEROXT extends JFrame implements Runnable {
 	private final JButton connect = new JButton("Connect");
 	private final JButton disconnect = new JButton("Disconnect");
 
+	// imaris selection
+	private final JComboBox<Integer> imarisList = new JComboBox<>();
+
 	// group and user selection
 	private final JComboBox<String> groupList = new JComboBox<>();
 	private final JComboBox<String> userList = new JComboBox<>();
@@ -71,7 +75,6 @@ public class OMEROXT extends JFrame implements Runnable {
 	private final JComboBox<String> datasetListOut = new JComboBox<>();
 
 	//variables to keep
-	private final int imarisID;
 	private transient Client client;
 	private transient List<GroupWrapper> groups;
 	private transient List<ProjectWrapper> groupProjects;
@@ -87,9 +90,8 @@ public class OMEROXT extends JFrame implements Runnable {
 	/**
 	 * Creates a new window.
 	 */
-	public OMEROXT(int imarisID) {
+	public OMEROXT() {
 		super("OMERO XT");
-		this.imarisID = imarisID;
 
 		final int width = 720;
 		final int height = 640;
@@ -118,6 +120,17 @@ public class OMEROXT extends JFrame implements Runnable {
 		warning.setFont(warnFont);
 		panelWarning.add(warning);
 		cp.add(panelWarning);
+
+		JPanel imaris = new JPanel();
+		JLabel labelImaris = new JLabel("Imaris instance: ");
+		JButton refreshImaris = new JButton("Refresh");
+        refreshImaris.addActionListener(e -> refreshImaris());
+		labelImaris.setLabelFor(imarisList);
+		imaris.add(labelImaris);
+		imaris.add(imarisList);
+		imaris.add(refreshImaris);
+        cp.add(imaris);
+		refreshImaris();
 
 		JPanel connection = new JPanel();
 		JLabel labelConnection = new JLabel("Connection status: ");
@@ -221,6 +234,12 @@ public class OMEROXT extends JFrame implements Runnable {
 	}
 
 
+	public OMEROXT(int aImarisID) {
+		this();
+        this.imarisList.setSelectedItem(aImarisID);
+	}
+
+
 	/**
 	 * Formats the object name using its ID and some padding.
 	 *
@@ -279,10 +298,28 @@ public class OMEROXT extends JFrame implements Runnable {
 	public static void main(String[] args) {
 		if (args != null && args.length > 0) {
 			int imarisID = Integer.parseInt(args[0]);
-			OMEROXT omeroxt = new OMEROXT(imarisID);
+			Runnable omeroxt = new OMEROXT(imarisID);
+			omeroxt.run();
+		} else {
+			Runnable omeroxt = new OMEROXT();
 			omeroxt.run();
 		}
 	}
+
+
+    private void refreshImaris() {
+        BPImarisLib imarisLib = new BPImarisLib();
+        ImarisServer.IServerPrx vServer = imarisLib.GetServer();
+        int nImaris = 0;
+		if (vServer != null) {
+			nImaris = vServer.GetNumberOfObjects();
+		}
+        imarisList.removeAllItems();
+        for(int i=0; i<nImaris; i++) {
+            imarisList.addItem(vServer.GetObjectID(i));
+        }
+        this.repack();
+    }
 
 
 	/**
@@ -597,7 +634,7 @@ public class OMEROXT extends JFrame implements Runnable {
 		int index = imageListIn.getSelectedIndex();
 		if (index >= 0) {
 			ImageWrapper image = userImages.get(index);
-			createImarisDataset(client, image, imarisID);
+			createImarisDataset(client, image, imarisList.getItemAt(imarisList.getSelectedIndex()));
 		}
 	}
 
@@ -614,12 +651,10 @@ public class OMEROXT extends JFrame implements Runnable {
 
 
 	/**
-	 * When an object implementing interface <code>Runnable</code> is used to create a thread, starting the thread
-	 * causes the object's
-	 * <code>run</code> method to be called in that separately executing
-	 * thread.
-	 * <p>
-	 * The general contract of the method <code>run</code> is that it may take any action whatsoever.
+	 * When an object implementing interface {@link Runnable} is used to create a thread, starting
+	 * the thread causes the object run method to be called in that separately executing thread.
+	 * <br>
+	 * The general contract of the method {@code run} is that it may take any action whatsoever.
 	 *
 	 * @see Thread#run()
 	 */
