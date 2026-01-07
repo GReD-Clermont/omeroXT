@@ -14,14 +14,8 @@
  * this program; if not, write to the Free Software Foundation, Inc., 51 Franklin
  * Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-
+/**
+ * This package contains classes and interfaces for building graphical user
+ * interfaces (GUIs) for the Imaris software.
+ */
 package fr.igred.imaris.gui;
-
-
-public class OMEROXTTest {
-
-    public static void main(String[] args) {
-        OMEROXT.main(args);
-    }
-
-}
