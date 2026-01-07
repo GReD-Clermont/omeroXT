@@ -29,17 +29,7 @@ import fr.igred.omero.repository.GenericRepositoryObjectWrapper;
 import fr.igred.omero.repository.ImageWrapper;
 import fr.igred.omero.repository.ProjectWrapper;
 
-import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
-import javax.swing.JButton;
-import javax.swing.JCheckBox;
-import javax.swing.JComboBox;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.WindowConstants;
+import javax.swing.*;
 import java.awt.Color;
 import java.awt.Container;
 import java.awt.Dimension;
@@ -58,6 +48,7 @@ import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import static Imaris.IApplicationPrxHelper.checkedCast;
 import static fr.igred.omero.repository.Image2Imaris.createImarisDataset;
 import static javax.swing.JOptionPane.showMessageDialog;
 
@@ -71,33 +62,33 @@ public class OMEROXT extends JFrame implements Runnable {
 	private static final String FORMAT = "%%-%ds (ID:%%%dd)";
 
 	// connection management
-	private final JLabel connectionStatus = new JLabel("Disconnected");
-	private final JButton connect = new JButton("Connect");
-	private final JButton disconnect = new JButton("Disconnect");
+	private final JLabel  connectionStatus = new JLabel("Disconnected");
+	private final JButton connect          = new JButton("Connect");
+	private final JButton disconnect       = new JButton("Disconnect");
 
 	// imaris selection
 	private final JComboBox<Integer> imarisList = new JComboBox<>();
 
 	// group and user selection
 	private final JComboBox<String> groupList = new JComboBox<>();
-	private final JComboBox<String> userList = new JComboBox<>();
+	private final JComboBox<String> userList  = new JComboBox<>();
 
 	// choice of the dataSet
 	private final JComboBox<String> projectListIn = new JComboBox<>();
 	private final JComboBox<String> datasetListIn = new JComboBox<>();
-	private final JComboBox<String> imageListIn = new JComboBox<>();
-	private final JCheckBox loadROIs = new JCheckBox("Load ROIs ");
+	private final JComboBox<String> imageListIn   = new JComboBox<>();
+	private final JCheckBox         loadROIs      = new JCheckBox("Load ROIs ");
 
 	//variables to keep
-	private final transient BPImarisLib imarisLib = new BPImarisLib();
-	private transient Client client;
-	private transient List<GroupWrapper> groups;
-	private transient List<ProjectWrapper> groupProjects;
-	private transient List<ProjectWrapper> userProjects;
-	private transient List<DatasetWrapper> userDatasets;
-	private transient List<ImageWrapper> userImages;
-	private transient List<ExperimenterWrapper> users;
-	private transient ExperimenterWrapper exp;
+	private final transient BPImarisLib               imarisLib = new BPImarisLib();
+	private transient       Client                    client;
+	private transient       List<GroupWrapper>        groups;
+	private transient       List<ProjectWrapper>      groupProjects;
+	private transient       List<ProjectWrapper>      userProjects;
+	private transient       List<DatasetWrapper>      userDatasets;
+	private transient       List<ImageWrapper>        userImages;
+	private transient       List<ExperimenterWrapper> users;
+	private transient       ExperimenterWrapper       exp;
 
 
 	/**
@@ -105,14 +96,14 @@ public class OMEROXT extends JFrame implements Runnable {
 	 */
 	public OMEROXT() {
 		super("OMERO XT");
-		super.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+		super.setDefaultCloseOperation(EXIT_ON_CLOSE);
 
-		final int width = 720;
+		final int width  = 720;
 		final int height = 640;
 
 		final String projectName = "Project Name: ";
 		final String datasetName = "Dataset Name: ";
-		final String imageName = "Image Name: ";
+		final String imageName   = "Image Name: ";
 
 		final Font listFont = new Font(Font.MONOSPACED, Font.PLAIN, 12);
 		final Font warnFont = new Font("Arial", Font.ITALIC + Font.BOLD, 12);
@@ -129,14 +120,14 @@ public class OMEROXT extends JFrame implements Runnable {
 		super.addWindowListener(new ClientDisconnector());
 
 		JPanel panelWarning = new JPanel();
-		JLabel warning = new JLabel("Warning: all windows will be closed.");
+		JLabel warning      = new JLabel("Warning: all windows will be closed.");
 		warning.setForeground(orange);
 		warning.setFont(warnFont);
 		panelWarning.add(warning);
 		cp.add(panelWarning);
 
-		JPanel imaris = new JPanel();
-		JLabel labelImaris = new JLabel("Imaris instance: ");
+		JPanel  imaris        = new JPanel();
+		JLabel  labelImaris   = new JLabel("Imaris instance: ");
 		JButton refreshImaris = new JButton("Refresh");
 		refreshImaris.addActionListener(e -> refreshImaris());
 		labelImaris.setLabelFor(imarisList);
@@ -151,7 +142,7 @@ public class OMEROXT extends JFrame implements Runnable {
 		panelImaris.setBorder(BorderFactory.createTitledBorder("Imaris"));
 		cp.add(panelImaris);
 
-		JPanel connection = new JPanel();
+		JPanel connection      = new JPanel();
 		JLabel labelConnection = new JLabel("Connection status: ");
 		labelConnection.setLabelFor(connectionStatus);
 		connectionStatus.setForeground(Color.RED);
@@ -167,7 +158,7 @@ public class OMEROXT extends JFrame implements Runnable {
 		cp.add(connection);
 
 		JLabel labelGroup = new JLabel("Group Name: ");
-		JLabel labelUser = new JLabel("User Name: ");
+		JLabel labelUser  = new JLabel("User Name: ");
 		labelGroup.setLabelFor(groupList);
 		labelUser.setLabelFor(userList);
 		// choices of input images
@@ -182,10 +173,10 @@ public class OMEROXT extends JFrame implements Runnable {
 		groupList.setFont(listFont);
 		userList.setFont(listFont);
 
-		JLabel labelProjectIn = new JLabel(projectName);
-		JLabel labelDatasetIn = new JLabel(datasetName);
-		JLabel labelImageIn = new JLabel(imageName);
-		JButton preview = new JButton("Load");
+		JLabel  labelProjectIn = new JLabel(projectName);
+		JLabel  labelDatasetIn = new JLabel(datasetName);
+		JLabel  labelImageIn   = new JLabel(imageName);
+		JButton preview        = new JButton("Load");
 		labelProjectIn.setLabelFor(projectListIn);
 		labelDatasetIn.setLabelFor(datasetListIn);
 		labelImageIn.setLabelFor(imageListIn);
@@ -226,7 +217,7 @@ public class OMEROXT extends JFrame implements Runnable {
 
 	public OMEROXT(int aImarisID) {
 		this();
-        this.imarisList.setSelectedItem(aImarisID);
+		this.imarisList.setSelectedItem(aImarisID);
 	}
 
 
@@ -237,7 +228,6 @@ public class OMEROXT extends JFrame implements Runnable {
 	 * @param id      Object ID.
 	 * @param padName Padding used for the name.
 	 * @param padId   Padding used for the ID.
-	 *
 	 * @return The formatted object qualifier.
 	 */
 	private static String format(String name, long id, int padName, int padId) {
@@ -252,16 +242,15 @@ public class OMEROXT extends JFrame implements Runnable {
 	 * @param objects The OMERO objects.
 	 * @param mapper  The function applied to these objects.
 	 * @param <T>     The type of object.
-	 *
 	 * @return The padding required.
 	 */
 	private static <T extends GenericObjectWrapper<?>>
 	int getListPadding(Collection<T> objects, Function<? super T, ? extends Number> mapper) {
 		return objects.stream()
-					  .map(mapper)
-					  .mapToInt(Number::intValue)
-					  .max()
-					  .orElse(0);
+		              .map(mapper)
+		              .mapToInt(Number::intValue)
+		              .max()
+		              .orElse(0);
 	}
 
 
@@ -286,9 +275,9 @@ public class OMEROXT extends JFrame implements Runnable {
 
 
 	public static void main(String[] args) {
-		if (args != null && args.length > 0) {
-			int imarisID = Integer.parseInt(args[0]);
-			Runnable omeroxt = new OMEROXT(imarisID);
+		if (args!=null && args.length > 0) {
+			int      imarisID = Integer.parseInt(args[0]);
+			Runnable omeroxt  = new OMEROXT(imarisID);
 			omeroxt.run();
 		} else {
 			Runnable omeroxt = new OMEROXT();
@@ -297,18 +286,18 @@ public class OMEROXT extends JFrame implements Runnable {
 	}
 
 
-    private void refreshImaris() {
-        ImarisServer.IServerPrx vServer = imarisLib.GetServer();
-        int nImaris = 0;
-		if (vServer != null) {
+	private void refreshImaris() {
+		ImarisServer.IServerPrx vServer = imarisLib.GetServer();
+		int                     nImaris = 0;
+		if (vServer!=null) {
 			nImaris = vServer.GetNumberOfObjects();
 		}
-        imarisList.removeAllItems();
-        for(int i=0; i<nImaris; i++) {
-            imarisList.addItem(vServer.GetObjectID(i));
-        }
-        this.repack();
-    }
+		imarisList.removeAllItems();
+		for (int i = 0; i < nImaris; i++) {
+			imarisList.addItem(vServer.GetObjectID(i));
+		}
+		this.repack();
+	}
 
 
 	/**
@@ -322,8 +311,8 @@ public class OMEROXT extends JFrame implements Runnable {
 			userProjects = groupProjects;
 		} else {
 			userProjects = groupProjects.stream()
-										.filter(project -> project.getOwner().getId() == userId)
-										.collect(Collectors.toList());
+			                            .filter(project -> project.getOwner().getId()==userId)
+			                            .collect(Collectors.toList());
 		}
 	}
 
@@ -334,10 +323,10 @@ public class OMEROXT extends JFrame implements Runnable {
 	 * @param e The event triggering this.
 	 */
 	private void updateInputDataset(ItemEvent e) {
-		if (e.getStateChange() == ItemEvent.SELECTED) {
+		if (e.getStateChange()==ItemEvent.SELECTED) {
 			Object source = e.getSource();
 			if (source instanceof JComboBox<?>) {
-				int index = ((JComboBox<?>) source).getSelectedIndex();
+				int            index   = ((JComboBox<?>) source).getSelectedIndex();
 				DatasetWrapper dataset = this.userDatasets.get(index);
 				try {
 					this.userImages = dataset.getImages(client);
@@ -345,14 +334,16 @@ public class OMEROXT extends JFrame implements Runnable {
 					LOGGER.warning(ex.getMessage());
 				}
 				this.userImages.sort(Comparator.comparing(GenericRepositoryObjectWrapper::getName,
-														  String.CASE_INSENSITIVE_ORDER));
+				                                          String.CASE_INSENSITIVE_ORDER));
 				imageListIn.removeAllItems();
 				int padName = getListPadding(userImages, i -> i.getName().length());
-				int padId = getListPadding(userImages, i -> (int) (StrictMath.log10(i.getId()))) + 1;
+				int padId   = getListPadding(userImages, i -> (int) (StrictMath.log10(i.getId()))) + 1;
 				for (ImageWrapper i : this.userImages) {
 					imageListIn.addItem(format(i.getName(), i.getId(), padName, padId));
 				}
-				if (!this.userImages.isEmpty()) imageListIn.setSelectedIndex(0);
+				if (!this.userImages.isEmpty()) {
+					imageListIn.setSelectedIndex(0);
+				}
 			}
 		}
 		this.repack();
@@ -365,21 +356,23 @@ public class OMEROXT extends JFrame implements Runnable {
 	 * @param e The event triggering this.
 	 */
 	private void updateInputProject(ItemEvent e) {
-		if (e.getStateChange() == ItemEvent.SELECTED) {
+		if (e.getStateChange()==ItemEvent.SELECTED) {
 			Object source = e.getSource();
 			if (source instanceof JComboBox<?>) {
-				int index = ((JComboBox<?>) source).getSelectedIndex();
+				int            index   = ((JComboBox<?>) source).getSelectedIndex();
 				ProjectWrapper project = userProjects.get(index);
 				this.userDatasets = project.getDatasets();
 				this.userDatasets.sort(Comparator.comparing(DatasetWrapper::getName,
-															String.CASE_INSENSITIVE_ORDER));
+				                                            String.CASE_INSENSITIVE_ORDER));
 				datasetListIn.removeAllItems();
 				int padName = getListPadding(userDatasets, d -> d.getName().length());
-				int padId = getListPadding(userDatasets, g -> (int) (StrictMath.log10(g.getId()))) + 1;
+				int padId   = getListPadding(userDatasets, g -> (int) (StrictMath.log10(g.getId()))) + 1;
 				for (DatasetWrapper d : this.userDatasets) {
 					datasetListIn.addItem(format(d.getName(), d.getId(), padName, padId));
 				}
-				if (!this.userDatasets.isEmpty()) datasetListIn.setSelectedIndex(0);
+				if (!this.userDatasets.isEmpty()) {
+					datasetListIn.setSelectedIndex(0);
+				}
 			}
 		}
 	}
@@ -391,20 +384,24 @@ public class OMEROXT extends JFrame implements Runnable {
 	 * @param e The event triggering this.
 	 */
 	private void updateUser(ItemEvent e) {
-		if (e.getStateChange() == ItemEvent.SELECTED) {
-			int index = userList.getSelectedIndex();
+		if (e.getStateChange()==ItemEvent.SELECTED) {
+			int    index    = userList.getSelectedIndex();
 			String username = userList.getItemAt(index);
-			long userId = -1;
-			if (index >= 1) userId = users.get(index - 1).getId();
+			long   userId   = -1;
+			if (index >= 1) {
+				userId = users.get(index - 1).getId();
+			}
 			userProjectsAndDatasets(username, userId);
 			projectListIn.removeAllItems();
 			datasetListIn.removeAllItems();
 			int padName = getListPadding(userProjects, p -> p.getName().length());
-			int padId = getListPadding(userProjects, g -> (int) (StrictMath.log10(g.getId()))) + 1;
+			int padId   = getListPadding(userProjects, g -> (int) (StrictMath.log10(g.getId()))) + 1;
 			for (ProjectWrapper project : userProjects) {
 				projectListIn.addItem(format(project.getName(), project.getId(), padName, padId));
 			}
-			if (!userProjects.isEmpty()) projectListIn.setSelectedIndex(0);
+			if (!userProjects.isEmpty()) {
+				projectListIn.setSelectedIndex(0);
+			}
 		}
 	}
 
@@ -415,9 +412,9 @@ public class OMEROXT extends JFrame implements Runnable {
 	 * @param e The event triggering this.
 	 */
 	private void updateGroup(ItemEvent e) {
-		if (e.getStateChange() == ItemEvent.SELECTED) {
-			int index = groupList.getSelectedIndex();
-			long id = groups.get(index).getId();
+		if (e.getStateChange()==ItemEvent.SELECTED) {
+			int    index     = groupList.getSelectedIndex();
+			long   id        = groups.get(index).getId();
 			String groupName = groups.get(index).getName();
 			client.switchGroup(id);
 
@@ -428,7 +425,7 @@ public class OMEROXT extends JFrame implements Runnable {
 				LOGGER.warning(exception.getMessage());
 			}
 			groupProjects.sort(Comparator.comparing(ProjectWrapper::getName,
-													String.CASE_INSENSITIVE_ORDER));
+			                                        String.CASE_INSENSITIVE_ORDER));
 			try {
 				GroupWrapper group = client.getGroup(groupName);
 				users = group.getExperimenters();
@@ -439,12 +436,12 @@ public class OMEROXT extends JFrame implements Runnable {
 			userList.removeAllItems();
 
 			userList.addItem("All members");
-			int padName = getListPadding(users, u -> u.getUserName().length());
-			int padId = getListPadding(users, g -> (int) (StrictMath.log10(g.getId()))) + 1;
+			int padName  = getListPadding(users, u -> u.getUserName().length());
+			int padId    = getListPadding(users, g -> (int) (StrictMath.log10(g.getId()))) + 1;
 			int selected = 0;
 			for (ExperimenterWrapper user : users) {
 				userList.addItem(format(user.getUserName(), user.getId(), padName, padId));
-				if (user.getId() == exp.getId()) {
+				if (user.getId()==exp.getId()) {
 					selected = users.indexOf(user) + 1;
 				}
 			}
@@ -459,9 +456,11 @@ public class OMEROXT extends JFrame implements Runnable {
 	 * @return True if the connection was successful.
 	 */
 	private boolean connect() {
-		final Color green = new Color(0, 153, 0);
-		boolean connected = false;
-		if (client == null) client = new Client();
+		final Color green     = new Color(0, 153, 0);
+		boolean     connected = false;
+		if (client==null) {
+			client = new Client();
+		}
 		OMEROConnectDialog connectDialog = new OMEROConnectDialog();
 		connectDialog.connect(client);
 		if (!connectDialog.wasCancelled()) {
@@ -479,7 +478,7 @@ public class OMEROXT extends JFrame implements Runnable {
 			groups.removeIf(g -> g.getId() <= 2);
 
 			int padName = getListPadding(groups, g -> g.getName().length());
-			int padId = getListPadding(groups, g -> (int) (StrictMath.log10(g.getId()))) + 1;
+			int padId   = getListPadding(groups, g -> (int) (StrictMath.log10(g.getId()))) + 1;
 			for (GroupWrapper group : groups) {
 				groupList.addItem(format(group.getName(), group.getId(), padName, padId));
 			}
@@ -491,7 +490,9 @@ public class OMEROXT extends JFrame implements Runnable {
 
 			int index = -1;
 			for (int i = 0; index < 0 && i < groups.size(); i++) {
-				if (groups.get(i).getId() == groupId) index = i;
+				if (groups.get(i).getId()==groupId) {
+					index = i;
+				}
 			}
 			groupList.setSelectedIndex(-1);
 			groupList.setSelectedIndex(index);
@@ -522,13 +523,13 @@ public class OMEROXT extends JFrame implements Runnable {
 	 * Shows a new window to preview the current dataset.
 	 */
 	private void loadImage() {
-
 		int index = imageListIn.getSelectedIndex();
 		if (index >= 0) {
-			ImageWrapper image = userImages.get(index);
-			int imarisID = imarisList.getItemAt(imarisList.getSelectedIndex());
-			ImarisServer.IServerPrx vServer = imarisLib.GetServer();
-			Imaris.IApplicationPrx vImarisApplication = Imaris.IApplicationPrxHelper.checkedCast(vServer.GetObject(imarisID));
+			ImageWrapper            image    = userImages.get(index);
+			int                     imarisID = imarisList.getItemAt(imarisList.getSelectedIndex());
+			ImarisServer.IServerPrx vServer  = imarisLib.GetServer();
+
+			Imaris.IApplicationPrx vImarisApplication = checkedCast(vServer.GetObject(imarisID));
 			createImarisDataset(client, image, vImarisApplication);
 		}
 	}
@@ -560,7 +561,8 @@ public class OMEROXT extends JFrame implements Runnable {
 
 	private class ClientDisconnector extends WindowAdapter {
 
-		ClientDisconnector() {}
+		ClientDisconnector() {
+		}
 
 
 		@SuppressWarnings("SyntheticAccessorCall")
@@ -569,7 +571,9 @@ public class OMEROXT extends JFrame implements Runnable {
 			super.windowClosing(e);
 			imarisLib.Disconnect();
 			Client c = client;
-			if (c != null) c.disconnect();
+			if (c!=null) {
+				c.disconnect();
+			}
 		}
 
 	}
