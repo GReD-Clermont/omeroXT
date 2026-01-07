@@ -22,14 +22,10 @@ import Imaris.IApplicationPrx;
 import Imaris.IDataSetPrx;
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.AccessException;
-import fr.igred.omero.exception.OMEROServerError;
 import fr.igred.omero.exception.ServiceException;
 import ome.model.units.Time;
-import omero.model._PlaneInfoOperationsNC;
-import omero.model.enums.UnitsTime;
 
 import java.lang.invoke.MethodHandles;
-import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 
@@ -82,7 +78,8 @@ public final class Image2Imaris {
     }
 
 
-    private static void setDataSlice(double[][] pixels, IDataSetPrx imarisDataset, int c, int z, int t) throws Error {
+    private static void setDataSlice(double[][] pixels, IDataSetPrx imarisDataset, int c, int z, int t)
+    throws Error {
         Imaris.tType type = imarisDataset.GetType();
         if (type == eTypeUInt8) setDataSliceBytes(pixels, imarisDataset, c, z, t);
         else if (type == eTypeUInt16) setDataSliceShorts(pixels, imarisDataset, c, z, t);
@@ -146,36 +143,36 @@ public final class Image2Imaris {
 
 
     private static void setSpacing(Client client, ImageWrapper image, IDataSetPrx imarisDataset) {
-        int sizeX = image.getPixels().getSizeX();
-        int sizeY = image.getPixels().getSizeY();
-        int sizeZ = image.getPixels().getSizeZ();
-        String unit = image.getPixels().getPixelSizeX().getSymbol();
-        float spacingX = (float) image.getPixels().getPixelSizeX().getValue();
-        float spacingY = (float) image.getPixels().getPixelSizeY().getValue();
-        float spacingZ = (float) image.getPixels().getPixelSizeZ().getValue();
-        float minX = 0;
-        float minY = 0;
-        float minZ = 0;
-        double delta = 0;
+        PixelsWrapper pixels = image.getPixels();
+
+        int sizeX = pixels.getSizeX();
+        int sizeY = pixels.getSizeY();
+        int sizeZ = pixels.getSizeZ();
+
+        String unit = pixels.getPixelSizeX().getSymbol();
+
+        float spacingX = (float) pixels.getPixelSizeX().getValue();
+        float spacingY = (float) pixels.getPixelSizeY().getValue();
+        float spacingZ = (float) pixels.getPixelSizeZ().getValue();
+
         try {
-            List<omero.model.IObject> objects = client.findByQuery("select info from PlaneInfo as info " +
-                                                                   "join fetch info.deltaT as dt " +
-                                                                   "join fetch info.exposureTime as et " +
-                                                                   "where info.pixels.id=" + image.getPixels().getId());
-            _PlaneInfoOperationsNC planeInfo = (_PlaneInfoOperationsNC) objects.get(0);
-            minX = (float) planeInfo.getPositionX().getValue();
-            minY = (float) planeInfo.getPositionY().getValue();
-            minZ = (float) planeInfo.getPositionZ().getValue();
-            delta = planeInfo.getDeltaT().getValue();
-            UnitsTime deltaUnit = planeInfo.getDeltaT().getUnit();
-            Time t = new Time(delta, String.valueOf(deltaUnit));
-            delta = Time.convertTime(t, "s").getValue();
-        } catch (ServiceException | OMEROServerError e) {
+            pixels.loadPlanesInfo(client);
+        } catch (AccessException | ExecutionException | ServiceException e) {
             LOGGER.warning(e.getMessage());
         }
-        float maxX = minX + spacingX * sizeX;
-        float maxY = minY + spacingY * sizeY;
-        float maxZ = minZ + spacingZ * sizeZ;
+
+        float minX = (float) pixels.getPositionX().getValue();
+        float minY = (float) pixels.getPositionY().getValue();
+        float minZ = (float) pixels.getPositionZ().getValue();
+	    float maxX = minX + spacingX * sizeX;
+	    float maxY = minY + spacingY * sizeY;
+	    float maxZ = minZ + spacingZ * sizeZ;
+
+	    String tUnit = String.valueOf(pixels.getMeanTimeInterval().getUnit());
+
+	    Time t = new Time(pixels.getMeanTimeInterval().getValue(), tUnit);
+
+	    double delta = Time.convertTime(t, "s").getValue();
 
         try {
             imarisDataset.SetExtendMinX(minX);
