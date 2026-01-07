@@ -20,12 +20,19 @@ package fr.igred.omero.repository;
 import Imaris.Error;
 import Imaris.IApplicationPrx;
 import Imaris.IDataSetPrx;
+import Imaris.ILabelImagePrx;
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.ServiceException;
+import fr.igred.omero.roi.GenericShapeWrapper;
+import fr.igred.omero.roi.ROIWrapper;
+import fr.igred.omero.roi.ShapeList;
 import ome.model.units.Time;
 
+import java.awt.Shape;
+import java.awt.geom.Rectangle2D;
 import java.lang.invoke.MethodHandles;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 
@@ -68,8 +75,9 @@ public final class Image2Imaris {
 			for (int t = 0; t < sizeT; t++) {
 				for (int z = 0; z < sizeZ; z++) {
 					for (int c = 0; c < sizeC; c++) {
-						PixelsWrapper.Coordinates pos    = new PixelsWrapper.Coordinates(0, 0, c, z, t);
-						double[][]                pixels = pix.getTile(client, pos, sizeX, sizeY);
+						PixelsWrapper.Coordinates pos = new PixelsWrapper.Coordinates(0, 0, c, z, t);
+
+						double[][] pixels = pix.getTile(client, pos, sizeX, sizeY);
 						setDataSlice(pixels, dataset, c, z, t);
 					}
 				}
@@ -206,6 +214,63 @@ public final class Image2Imaris {
 		} catch (Error e) {
 			LOGGER.warning(e.getMessage());
 		}
+	}
+
+
+	/**
+	 * Loads the ROIs of the image into an Imaris label image.
+	 *
+	 * @param client The OMERO client.
+	 * @param image  The OMERO image.
+	 * @param app    The Imaris application proxy.
+	 * @return The Imaris label image containing the ROIs.
+	 * @throws AccessException    If there is an access error.
+	 * @throws ServiceException   If there is a service error.
+	 * @throws ExecutionException If there is an execution error.
+	 * @throws Error              If there is an Imaris error.
+	 */
+	public static ILabelImagePrx loadROIs(Client client, ImageWrapper image, IApplicationPrx app)
+	throws AccessException, ServiceException, ExecutionException, Error {
+		int sizeX = image.getPixels().getSizeX();
+		int sizeY = image.getPixels().getSizeY();
+		int sizeZ = image.getPixels().getSizeZ();
+		int sizeT = image.getPixels().getSizeT();
+
+		List<ROIWrapper> rois = image.getROIs(client);
+
+		ILabelImagePrx labelImage = app.GetFactory().CreateLabelImage();
+		labelImage.Create(sizeX, sizeY, sizeZ, sizeT);
+
+		for (int index = 0; index < rois.size(); index++) {
+			ROIWrapper roi    = rois.get(index);
+			ShapeList  shapes = roi.getShapes();
+			for (GenericShapeWrapper<?> shape : shapes) {
+				int z = shape.getZ();
+				int t = shape.getT();
+
+				Shape awtShape = shape.createTransformedAWTShape();
+
+				Rectangle2D bounds = awtShape.getBounds2D();
+
+				int x = (int) bounds.getX();
+				int y = (int) bounds.getY();
+				int w = (int) bounds.getWidth();
+				int h = (int) bounds.getHeight();
+
+				int[] labels = labelImage.GetDataSubVolumeAs1DArrayInts(x, y, z, t, w, h, 1);
+
+				for (int j = 0; j < h; j++) {
+					for (int i = 0; i < w; i++) {
+						if (awtShape.contains(i + x, j + y)) {
+							int pos = j * w + i;
+							labels[pos] = index + 1;
+						}
+					}
+				}
+				labelImage.SetDataSubVolumeAs1DArrayInts(labels, x, y, z, t, w, h, 1);
+			}
+		}
+		return labelImage;
 	}
 
 }

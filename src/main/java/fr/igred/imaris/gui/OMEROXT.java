@@ -17,6 +17,9 @@
 
 package fr.igred.imaris.gui;
 
+import Imaris.Error;
+import Imaris.ILabelImagePrx;
+import Imaris.ISurfacesPrx;
 import com.bitplane.xt.BPImarisLib;
 import fr.igred.omero.Client;
 import fr.igred.omero.GenericObjectWrapper;
@@ -26,6 +29,7 @@ import fr.igred.omero.meta.ExperimenterWrapper;
 import fr.igred.omero.meta.GroupWrapper;
 import fr.igred.omero.repository.DatasetWrapper;
 import fr.igred.omero.repository.GenericRepositoryObjectWrapper;
+import fr.igred.omero.repository.Image2Imaris;
 import fr.igred.omero.repository.ImageWrapper;
 import fr.igred.omero.repository.ProjectWrapper;
 
@@ -531,6 +535,17 @@ public class OMEROXT extends JFrame implements Runnable {
 
 			Imaris.IApplicationPrx vImarisApplication = checkedCast(vServer.GetObject(imarisID));
 			createImarisDataset(client, image, vImarisApplication);
+			if (loadROIs.isSelected()) {
+				try {
+					ILabelImagePrx label = Image2Imaris.loadROIs(client, image, vImarisApplication);
+
+					ISurfacesPrx surfaces = vImarisApplication.GetImageProcessing().DetectSurfacesFromLabelImage(label);
+
+					vImarisApplication.GetSurpassScene().AddChild(surfaces, -1);
+				} catch (AccessException | ServiceException | ExecutionException | Error e) {
+					LOGGER.warning(e.getMessage());
+				}
+			}
 		}
 	}
 
