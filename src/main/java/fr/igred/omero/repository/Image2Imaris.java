@@ -49,6 +49,7 @@ import static Imaris.tType.eTypeUInt8;
  */
 public final class Image2Imaris {
 
+	/** Logger for logging messages and errors. */
 	private static final Logger LOGGER = Logger.getLogger(MethodHandles.lookup().lookupClass().getName());
 
 
@@ -75,12 +76,15 @@ public final class Image2Imaris {
 		int sizeZ = pix.getSizeZ();
 		int sizeT = pix.getSizeT();
 
-		String       pixType = pix.getPixelType();
-		Imaris.tType type    = eTypeFloat;
+		String pixType = pix.getPixelType();
+
+		Imaris.tType type;
 		if ("uint8".equals(pixType)) {
 			type = eTypeUInt8;
 		} else if ("uint16".equals(pixType)) {
 			type = eTypeUInt16;
+		} else {
+			type = eTypeFloat;
 		}
 
 		try {
@@ -103,6 +107,7 @@ public final class Image2Imaris {
 				pix.destroyRawDataFacility();
 			}
 			app.SetDataSet(dataset);
+			app.GetSurpassCamera().Fit();
 		} catch (Error | AccessException | ExecutionException e) {
 			LOGGER.warning(e.getMessage());
 		}
@@ -117,6 +122,7 @@ public final class Image2Imaris {
 	 * @param c             Channel index.
 	 * @param z             Z-slice index.
 	 * @param t             Time point index.
+	 *
 	 * @throws Error If there is an Imaris error.
 	 */
 	private static void setDataSlice(double[][] pixels, IDataSetPrx imarisDataset, int c, int z, int t)
@@ -140,6 +146,7 @@ public final class Image2Imaris {
 	 * @param c             Channel index.
 	 * @param z             Z-slice index.
 	 * @param t             Time point index.
+	 *
 	 * @throws Error If there is an Imaris error.
 	 */
 	private static void setDataSliceBytes(double[][] pixels, IDataSetPrx imarisDataset, int c, int z, int t)
@@ -164,6 +171,7 @@ public final class Image2Imaris {
 	 * @param c             Channel index.
 	 * @param z             Z-slice index.
 	 * @param t             Time point index.
+	 *
 	 * @throws Error If there is an Imaris error.
 	 */
 	private static void setDataSliceShorts(double[][] pixels, IDataSetPrx imarisDataset, int c, int z, int t)
@@ -188,6 +196,7 @@ public final class Image2Imaris {
 	 * @param c             The channel index.
 	 * @param z             The Z index.
 	 * @param t             The time index.
+	 *
 	 * @throws Error If there is an Imaris error.
 	 */
 	private static void setDataSliceFloats(double[][] pixels, IDataSetPrx imarisDataset, int c, int z, int t)
@@ -295,6 +304,7 @@ public final class Image2Imaris {
 	 *
 	 * @param imarisImage The Imaris image.
 	 * @param date        The acquisition date as a String.
+	 *
 	 * @throws Error If there is an Imaris error.
 	 */
 	private static void setAcquisitionDate(IBaseImagePrx imarisImage, String date)
@@ -308,6 +318,7 @@ public final class Image2Imaris {
 	 * Converts an OMERO length value to a Float.
 	 *
 	 * @param length The OMERO length value.
+	 *
 	 * @return The length value as a Float, or null if the input is null.
 	 */
 	private static Float getLengthValue(omero.model.Length length) {
@@ -319,6 +330,7 @@ public final class Image2Imaris {
 	 * Converts an OMERO time value to seconds.
 	 *
 	 * @param time The OMERO time value.
+	 *
 	 * @return The time value in seconds, or null if the input is null.
 	 */
 	private static Float getTimeValueInSeconds(_TimeOperationsNC time) {
@@ -361,7 +373,9 @@ public final class Image2Imaris {
 	 * @param client The OMERO client.
 	 * @param image  The OMERO image.
 	 * @param app    The Imaris application proxy.
+	 *
 	 * @return The Imaris label image containing the ROIs.
+	 *
 	 * @throws AccessException    If there is an access error.
 	 * @throws ServiceException   If there is a service error.
 	 * @throws ExecutionException If there is an execution error.
@@ -426,9 +440,11 @@ public final class Image2Imaris {
 		 *
 		 * @param t The object to set the value on.
 		 * @param u The value to set.
+		 *
 		 * @throws Error If there is an Imaris error.
 		 */
 		void accept(T t, U u) throws Error;
+
 	}
 
 }
