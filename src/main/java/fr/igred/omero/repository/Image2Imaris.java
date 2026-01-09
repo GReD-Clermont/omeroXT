@@ -32,6 +32,7 @@ import ome.model.units.Time;
 import java.awt.Shape;
 import java.awt.geom.Rectangle2D;
 import java.lang.invoke.MethodHandles;
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
@@ -173,11 +174,27 @@ public final class Image2Imaris {
 		int sizeY = pixels.getSizeY();
 		int sizeZ = pixels.getSizeZ();
 
-		String unit = pixels.getPixelSizeX().getSymbol();
+		omero.model.Length pixSizeX = pixels.getPixelSizeX();
+		omero.model.Length pixSizeY = pixels.getPixelSizeY();
+		omero.model.Length pixSizeZ = pixels.getPixelSizeZ();
 
-		float spacingX = (float) pixels.getPixelSizeX().getValue();
-		float spacingY = (float) pixels.getPixelSizeY().getValue();
-		float spacingZ = (float) pixels.getPixelSizeZ().getValue();
+		Double spacingX = getLengthValue(pixSizeX);
+		Double spacingY = getLengthValue(pixSizeY);
+		Double spacingZ = getLengthValue(pixSizeZ);
+
+		String unit = pixSizeX != null ? pixSizeX.getSymbol() : null;
+
+		omero.model.Length posX = pixels.getPositionX();
+		omero.model.Length posY = pixels.getPositionY();
+		omero.model.Length posZ = pixels.getPositionZ();
+
+		Double minX = getLengthValue(posX);
+		Double minY = getLengthValue(posY);
+		Double minZ = getLengthValue(posZ);
+
+		Double maxX = minX != null && spacingX != null ? minX + spacingX * sizeX : null;
+		Double maxY = minY != null && spacingY != null ? minY + spacingY * sizeY : null;
+		Double maxZ = minZ != null && spacingZ != null ? minZ + spacingZ * sizeZ : null;
 
 		try {
 			pixels.loadPlanesInfo(client);
@@ -185,35 +202,57 @@ public final class Image2Imaris {
 			LOGGER.warning(e.getMessage());
 		}
 
-		float minX = (float) pixels.getPositionX().getValue();
-		float minY = (float) pixels.getPositionY().getValue();
-		float minZ = (float) pixels.getPositionZ().getValue();
-		float maxX = minX + spacingX * sizeX;
-		float maxY = minY + spacingY * sizeY;
-		float maxZ = minZ + spacingZ * sizeZ;
+		omero.model.Time interval = pixels.getMeanTimeInterval();
+		Double delta;
+		if (interval != null) {
+			String tUnit = String.valueOf(interval.getUnit());
+			Time t = new Time(pixels.getMeanTimeInterval().getValue(), tUnit);
 
-		String tUnit = String.valueOf(pixels.getMeanTimeInterval().getUnit());
-
-		Time t = new Time(pixels.getMeanTimeInterval().getValue(), tUnit);
-
-		double delta = Time.convertTime(t, "s").getValue();
+			delta = Time.convertTime(t, "s").getValue();
+		} else {
+			delta = null;
+		}
 
 		try {
-			imarisDataset.SetExtendMinX(minX);
-			imarisDataset.SetExtendMaxX(maxX);
-			imarisDataset.SetExtendMinY(minY);
-			imarisDataset.SetExtendMaxY(maxY);
-			imarisDataset.SetExtendMinZ(minZ);
-			imarisDataset.SetExtendMaxZ(maxZ);
-			imarisDataset.SetUnit(unit);
-			String date = image.getAcquisitionDate().toString();
-			imarisDataset.SetParameter("Image", "RecordingDate", date);
-			imarisDataset.SetTimePoint(0, date);
+			if (minX != null) {
+				imarisDataset.SetExtendMinX(minX.floatValue());
+			}
+			if (maxX != null) {
+				imarisDataset.SetExtendMaxX(maxX.floatValue());
+			}
+			if (minY != null) {
+				imarisDataset.SetExtendMinY(minY.floatValue());
+			}
+			if (maxY != null) {
+				imarisDataset.SetExtendMaxY(maxY.floatValue());
+			}
+			if (minZ != null) {
+				imarisDataset.SetExtendMinZ(minZ.floatValue());
+			}
+			if (maxZ != null) {
+				imarisDataset.SetExtendMaxZ(maxZ.floatValue());
+			}
+			if (unit != null) {
+				imarisDataset.SetUnit(unit);
+			}
+			Timestamp acqDate = image.getAcquisitionDate();
+			if (acqDate != null) {
+				String date = image.getAcquisitionDate().toString();
+				imarisDataset.SetParameter("Image", "RecordingDate", date);
+				imarisDataset.SetTimePoint(0, date);
+			}
 			// TODO: Fix time
-			imarisDataset.SetTimePointsDelta(delta);
+			if (delta != null) {
+				imarisDataset.SetTimePointsDelta(delta);
+			}
 		} catch (Error e) {
 			LOGGER.warning(e.getMessage());
 		}
+	}
+
+
+	private static Double getLengthValue(omero.model.Length length) {
+		return length != null ? length.getValue() : null;
 	}
 
 
