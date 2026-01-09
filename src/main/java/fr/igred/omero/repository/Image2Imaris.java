@@ -19,6 +19,7 @@ package fr.igred.omero.repository;
 
 import Imaris.Error;
 import Imaris.IApplicationPrx;
+import Imaris.IBaseImagePrx;
 import Imaris.IDataSetPrx;
 import Imaris.ILabelImagePrx;
 import fr.igred.omero.Client;
@@ -28,6 +29,7 @@ import fr.igred.omero.roi.GenericShapeWrapper;
 import fr.igred.omero.roi.ROIWrapper;
 import fr.igred.omero.roi.ShapeList;
 import ome.model.units.Time;
+import omero.model._TimeOperationsNC;
 
 import java.awt.Shape;
 import java.awt.geom.Rectangle2D;
@@ -41,15 +43,29 @@ import static Imaris.tType.eTypeFloat;
 import static Imaris.tType.eTypeUInt16;
 import static Imaris.tType.eTypeUInt8;
 
+
+/**
+ * Utility class for creating Imaris datasets from OMERO images.
+ */
 public final class Image2Imaris {
 
 	private static final Logger LOGGER = Logger.getLogger(MethodHandles.lookup().lookupClass().getName());
 
 
+	/**
+	 * Private constructor to prevent instantiation.
+	 */
 	private Image2Imaris() {
 	}
 
 
+	/**
+	 * Creates an Imaris dataset from an OMERO image and sets it in the Imaris application.
+	 *
+	 * @param client The OMERO client.
+	 * @param image  The OMERO image.
+	 * @param app    The Imaris application proxy.
+	 */
 	public static void createImarisDataset(Client client, ImageWrapper image, IApplicationPrx app) {
 		PixelsWrapper pix = image.getPixels();
 
@@ -93,19 +109,39 @@ public final class Image2Imaris {
 	}
 
 
+	/**
+	 * Sets a data slice in the Imaris dataset based on the pixel type.
+	 *
+	 * @param pixels        2D array of pixel values.
+	 * @param imarisDataset The Imaris dataset.
+	 * @param c             Channel index.
+	 * @param z             Z-slice index.
+	 * @param t             Time point index.
+	 * @throws Error If there is an Imaris error.
+	 */
 	private static void setDataSlice(double[][] pixels, IDataSetPrx imarisDataset, int c, int z, int t)
 	throws Error {
 		Imaris.tType type = imarisDataset.GetType();
-		if (type==eTypeUInt8) {
+		if (type == eTypeUInt8) {
 			setDataSliceBytes(pixels, imarisDataset, c, z, t);
-		} else if (type==eTypeUInt16) {
+		} else if (type == eTypeUInt16) {
 			setDataSliceShorts(pixels, imarisDataset, c, z, t);
-		} else if (type==eTypeFloat) {
+		} else if (type == eTypeFloat) {
 			setDataSliceFloats(pixels, imarisDataset, c, z, t);
 		}
 	}
 
 
+	/**
+	 * Sets a data slice in the Imaris dataset using byte values.
+	 *
+	 * @param pixels        2D array of pixel values.
+	 * @param imarisDataset The Imaris dataset.
+	 * @param c             Channel index.
+	 * @param z             Z-slice index.
+	 * @param t             Time point index.
+	 * @throws Error If there is an Imaris error.
+	 */
 	private static void setDataSliceBytes(double[][] pixels, IDataSetPrx imarisDataset, int c, int z, int t)
 	throws Error {
 		int      sizeY = pixels.length;
@@ -120,6 +156,16 @@ public final class Image2Imaris {
 	}
 
 
+	/**
+	 * Sets a data slice in the Imaris dataset using short values.
+	 *
+	 * @param pixels        2D array of pixel values.
+	 * @param imarisDataset The Imaris dataset.
+	 * @param c             Channel index.
+	 * @param z             Z-slice index.
+	 * @param t             Time point index.
+	 * @throws Error If there is an Imaris error.
+	 */
 	private static void setDataSliceShorts(double[][] pixels, IDataSetPrx imarisDataset, int c, int z, int t)
 	throws Error {
 		int       sizeY  = pixels.length;
@@ -134,6 +180,16 @@ public final class Image2Imaris {
 	}
 
 
+	/**
+	 * Sets a data slice in the Imaris dataset with float pixel values.
+	 *
+	 * @param pixels        The 2D array of pixel values.
+	 * @param imarisDataset The Imaris dataset.
+	 * @param c             The channel index.
+	 * @param z             The Z index.
+	 * @param t             The time index.
+	 * @throws Error If there is an Imaris error.
+	 */
 	private static void setDataSliceFloats(double[][] pixels, IDataSetPrx imarisDataset, int c, int z, int t)
 	throws Error {
 		int       sizeY  = pixels.length;
@@ -148,6 +204,13 @@ public final class Image2Imaris {
 	}
 
 
+	/**
+	 * Sets the channel colors and names of the Imaris dataset based on the OMERO image metadata.
+	 *
+	 * @param client        The OMERO client.
+	 * @param image         The OMERO image.
+	 * @param imarisDataset The Imaris dataset.
+	 */
 	private static void setChannels(Client client, ImageWrapper image, IDataSetPrx imarisDataset) {
 		int       sizeC = image.getPixels().getSizeC();
 		final int shift = 8;
@@ -167,7 +230,14 @@ public final class Image2Imaris {
 	}
 
 
-	private static void setSpacing(Client client, ImageWrapper image, IDataSetPrx imarisDataset) {
+	/**
+	 * Sets the spatial and temporal spacing of the Imaris image based on the OMERO image metadata.
+	 *
+	 * @param client      The OMERO client.
+	 * @param image       The OMERO image.
+	 * @param imarisImage The Imaris image.
+	 */
+	private static void setSpacing(Client client, ImageWrapper image, IBaseImagePrx imarisImage) {
 		PixelsWrapper pixels = image.getPixels();
 
 		int sizeX = pixels.getSizeX();
@@ -178,9 +248,9 @@ public final class Image2Imaris {
 		omero.model.Length pixSizeY = pixels.getPixelSizeY();
 		omero.model.Length pixSizeZ = pixels.getPixelSizeZ();
 
-		Double spacingX = getLengthValue(pixSizeX);
-		Double spacingY = getLengthValue(pixSizeY);
-		Double spacingZ = getLengthValue(pixSizeZ);
+		Float spacingX = getLengthValue(pixSizeX);
+		Float spacingY = getLengthValue(pixSizeY);
+		Float spacingZ = getLengthValue(pixSizeZ);
 
 		String unit = pixSizeX != null ? pixSizeX.getSymbol() : null;
 
@@ -188,13 +258,13 @@ public final class Image2Imaris {
 		omero.model.Length posY = pixels.getPositionY();
 		omero.model.Length posZ = pixels.getPositionZ();
 
-		Double minX = getLengthValue(posX);
-		Double minY = getLengthValue(posY);
-		Double minZ = getLengthValue(posZ);
+		Float minX = getLengthValue(posX);
+		Float minY = getLengthValue(posY);
+		Float minZ = getLengthValue(posZ);
 
-		Double maxX = minX != null && spacingX != null ? minX + spacingX * sizeX : null;
-		Double maxY = minY != null && spacingY != null ? minY + spacingY * sizeY : null;
-		Double maxZ = minZ != null && spacingZ != null ? minZ + spacingZ * sizeZ : null;
+		Float maxX = minX != null && spacingX != null ? minX + spacingX * sizeX : null;
+		Float maxY = minY != null && spacingY != null ? minY + spacingY * sizeY : null;
+		Float maxZ = minZ != null && spacingZ != null ? minZ + spacingZ * sizeZ : null;
 
 		try {
 			pixels.loadPlanesInfo(client);
@@ -202,57 +272,86 @@ public final class Image2Imaris {
 			LOGGER.warning(e.getMessage());
 		}
 
-		omero.model.Time interval = pixels.getMeanTimeInterval();
-		Double delta;
-		if (interval != null) {
-			String tUnit = String.valueOf(interval.getUnit());
-			Time t = new Time(pixels.getMeanTimeInterval().getValue(), tUnit);
+		Float delta = getTimeValueInSeconds(pixels.getMeanTimeInterval());
 
-			delta = Time.convertTime(t, "s").getValue();
+		Timestamp acqDate = image.getAcquisitionDate();
+		String    date    = acqDate != null ? acqDate.toString() : null;
+
+		setIfNotNull(imarisImage, IBaseImagePrx::SetExtendMinX, minX);
+		setIfNotNull(imarisImage, IBaseImagePrx::SetExtendMaxX, maxX);
+		setIfNotNull(imarisImage, IBaseImagePrx::SetExtendMinY, minY);
+		setIfNotNull(imarisImage, IBaseImagePrx::SetExtendMaxY, maxY);
+		setIfNotNull(imarisImage, IBaseImagePrx::SetExtendMinZ, minZ);
+		setIfNotNull(imarisImage, IBaseImagePrx::SetExtendMaxZ, maxZ);
+		setIfNotNull(imarisImage, IBaseImagePrx::SetUnit, unit);
+		setIfNotNull(imarisImage, Image2Imaris::setAcquisitionDate, date);
+		// TODO: Fix time
+		setIfNotNull(imarisImage, IBaseImagePrx::SetTimePointsDelta, delta);
+	}
+
+
+	/**
+	 * Sets the acquisition date on the Imaris image.
+	 *
+	 * @param imarisImage The Imaris image.
+	 * @param date        The acquisition date as a String.
+	 * @throws Error If there is an Imaris error.
+	 */
+	private static void setAcquisitionDate(IBaseImagePrx imarisImage, String date)
+	throws Error {
+		imarisImage.SetParameter("Image", "RecordingDate", date);
+		imarisImage.SetTimePoint(0, date);
+	}
+
+
+	/**
+	 * Converts an OMERO length value to a Float.
+	 *
+	 * @param length The OMERO length value.
+	 * @return The length value as a Float, or null if the input is null.
+	 */
+	private static Float getLengthValue(omero.model.Length length) {
+		return length != null ? (float) length.getValue() : null;
+	}
+
+
+	/**
+	 * Converts an OMERO time value to seconds.
+	 *
+	 * @param time The OMERO time value.
+	 * @return The time value in seconds, or null if the input is null.
+	 */
+	private static Float getTimeValueInSeconds(_TimeOperationsNC time) {
+		if (time != null) {
+			String tUnit = String.valueOf(time.getUnit());
+			Time   t     = new Time(time.getValue(), tUnit);
+
+			return (float) Time.convertTime(t, "s").getValue();
 		} else {
-			delta = null;
-		}
-
-		try {
-			if (minX != null) {
-				imarisDataset.SetExtendMinX(minX.floatValue());
-			}
-			if (maxX != null) {
-				imarisDataset.SetExtendMaxX(maxX.floatValue());
-			}
-			if (minY != null) {
-				imarisDataset.SetExtendMinY(minY.floatValue());
-			}
-			if (maxY != null) {
-				imarisDataset.SetExtendMaxY(maxY.floatValue());
-			}
-			if (minZ != null) {
-				imarisDataset.SetExtendMinZ(minZ.floatValue());
-			}
-			if (maxZ != null) {
-				imarisDataset.SetExtendMaxZ(maxZ.floatValue());
-			}
-			if (unit != null) {
-				imarisDataset.SetUnit(unit);
-			}
-			Timestamp acqDate = image.getAcquisitionDate();
-			if (acqDate != null) {
-				String date = image.getAcquisitionDate().toString();
-				imarisDataset.SetParameter("Image", "RecordingDate", date);
-				imarisDataset.SetTimePoint(0, date);
-			}
-			// TODO: Fix time
-			if (delta != null) {
-				imarisDataset.SetTimePointsDelta(delta);
-			}
-		} catch (Error e) {
-			LOGGER.warning(e.getMessage());
+			return null;
 		}
 	}
 
 
-	private static Double getLengthValue(omero.model.Length length) {
-		return length != null ? length.getValue() : null;
+	/**
+	 * Sets a value on the Imaris image if the value is not null.
+	 *
+	 * @param imarisImage The Imaris image.
+	 * @param setter      The setter method reference.
+	 * @param value       The value to set.
+	 * @param <T>         The type of the Imaris image.
+	 * @param <U>         The type of the value.
+	 */
+	private static <T, U extends T> void setIfNotNull(IBaseImagePrx imarisImage,
+	                                                  Setter<? super IBaseImagePrx, ? super T> setter,
+	                                                  U value) {
+		if (value != null) {
+			try {
+				setter.accept(imarisImage, value);
+			} catch (Error e) {
+				LOGGER.warning(e.getMessage() + ": " + e.mDescription);
+			}
+		}
 	}
 
 
@@ -310,6 +409,26 @@ public final class Image2Imaris {
 			}
 		}
 		return labelImage;
+	}
+
+
+	/**
+	 * Functional interface for setting a value on an object.
+	 *
+	 * @param <T> The type of the object.
+	 * @param <U> The type of the value to set.
+	 */
+	@FunctionalInterface
+	private interface Setter<T, U> {
+
+		/**
+		 * Sets a value on the given object.
+		 *
+		 * @param t The object to set the value on.
+		 * @param u The value to set.
+		 * @throws Error If there is an Imaris error.
+		 */
+		void accept(T t, U u) throws Error;
 	}
 
 }
