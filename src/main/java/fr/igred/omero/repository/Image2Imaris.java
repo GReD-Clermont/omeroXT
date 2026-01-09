@@ -399,6 +399,7 @@ public final class Image2Imaris {
 
 		ILabelImagePrx labelImage = app.GetFactory().CreateLabelImage();
 		labelImage.Create(sizeX, sizeY, sizeZ, sizeT);
+		setSpacing(client, image, labelImage);
 
 		for (int index = 0; index < rois.size(); index++) {
 			ROIWrapper roi    = rois.get(index);
@@ -411,10 +412,15 @@ public final class Image2Imaris {
 
 				Rectangle2D bounds = awtShape.getBounds2D();
 
-				int x = (int) bounds.getX();
-				int y = (int) bounds.getY();
-				int w = (int) bounds.getWidth();
-				int h = (int) bounds.getHeight();
+				int bx = (int) bounds.getX();
+				int by = (int) bounds.getY();
+				int bw = (int) bounds.getWidth();
+				int bh = (int) bounds.getHeight();
+
+				int x = bx < 0 ? 0 : bx >= sizeX ? sizeX - 1 : bx;
+				int y = by < 0 ? 0 : by >= sizeY ? sizeY - 1 : by;
+				int w = bw < 0 ? 0 : x + bw >= sizeX ? sizeX - x - 1 : bw;
+				int h = bh < 0 ? 0 : y + bh >= sizeY ? sizeY - y - 1 : bh;
 
 				int[] labels = labelImage.GetDataSubVolumeAs1DArrayInts(x, y, z, t, w, h, 1);
 
