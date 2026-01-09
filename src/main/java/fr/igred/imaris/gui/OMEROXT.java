@@ -279,7 +279,7 @@ public class OMEROXT extends JFrame implements Runnable {
 
 
 	public static void main(String[] args) {
-		if (args!=null && args.length > 0) {
+		if (args != null && args.length > 0) {
 			int      imarisID = Integer.parseInt(args[0]);
 			Runnable omeroxt  = new OMEROXT(imarisID);
 			omeroxt.run();
@@ -293,7 +293,7 @@ public class OMEROXT extends JFrame implements Runnable {
 	private void refreshImaris() {
 		ImarisServer.IServerPrx vServer = imarisLib.GetServer();
 		int                     nImaris = 0;
-		if (vServer!=null) {
+		if (vServer != null) {
 			nImaris = vServer.GetNumberOfObjects();
 		}
 		imarisList.removeAllItems();
@@ -315,7 +315,7 @@ public class OMEROXT extends JFrame implements Runnable {
 			userProjects = groupProjects;
 		} else {
 			userProjects = groupProjects.stream()
-			                            .filter(project -> project.getOwner().getId()==userId)
+			                            .filter(project -> project.getOwner().getId() == userId)
 			                            .collect(Collectors.toList());
 		}
 	}
@@ -327,7 +327,7 @@ public class OMEROXT extends JFrame implements Runnable {
 	 * @param e The event triggering this.
 	 */
 	private void updateInputDataset(ItemEvent e) {
-		if (e.getStateChange()==ItemEvent.SELECTED) {
+		if (e.getStateChange() == ItemEvent.SELECTED) {
 			Object source = e.getSource();
 			if (source instanceof JComboBox<?>) {
 				int            index   = ((JComboBox<?>) source).getSelectedIndex();
@@ -360,7 +360,7 @@ public class OMEROXT extends JFrame implements Runnable {
 	 * @param e The event triggering this.
 	 */
 	private void updateInputProject(ItemEvent e) {
-		if (e.getStateChange()==ItemEvent.SELECTED) {
+		if (e.getStateChange() == ItemEvent.SELECTED) {
 			Object source = e.getSource();
 			if (source instanceof JComboBox<?>) {
 				int            index   = ((JComboBox<?>) source).getSelectedIndex();
@@ -388,7 +388,7 @@ public class OMEROXT extends JFrame implements Runnable {
 	 * @param e The event triggering this.
 	 */
 	private void updateUser(ItemEvent e) {
-		if (e.getStateChange()==ItemEvent.SELECTED) {
+		if (e.getStateChange() == ItemEvent.SELECTED) {
 			int    index    = userList.getSelectedIndex();
 			String username = userList.getItemAt(index);
 			long   userId   = -1;
@@ -416,7 +416,7 @@ public class OMEROXT extends JFrame implements Runnable {
 	 * @param e The event triggering this.
 	 */
 	private void updateGroup(ItemEvent e) {
-		if (e.getStateChange()==ItemEvent.SELECTED) {
+		if (e.getStateChange() == ItemEvent.SELECTED) {
 			int    index     = groupList.getSelectedIndex();
 			long   id        = groups.get(index).getId();
 			String groupName = groups.get(index).getName();
@@ -445,7 +445,7 @@ public class OMEROXT extends JFrame implements Runnable {
 			int selected = 0;
 			for (ExperimenterWrapper user : users) {
 				userList.addItem(format(user.getUserName(), user.getId(), padName, padId));
-				if (user.getId()==exp.getId()) {
+				if (user.getId() == exp.getId()) {
 					selected = users.indexOf(user) + 1;
 				}
 			}
@@ -462,7 +462,7 @@ public class OMEROXT extends JFrame implements Runnable {
 	private boolean connect() {
 		final Color green     = new Color(0, 153, 0);
 		boolean     connected = false;
-		if (client==null) {
+		if (client == null) {
 			client = new Client();
 		}
 		OMEROConnectDialog connectDialog = new OMEROConnectDialog();
@@ -494,7 +494,7 @@ public class OMEROXT extends JFrame implements Runnable {
 
 			int index = -1;
 			for (int i = 0; index < 0 && i < groups.size(); i++) {
-				if (groups.get(i).getId()==groupId) {
+				if (groups.get(i).getId() == groupId) {
 					index = i;
 				}
 			}
@@ -586,7 +586,7 @@ public class OMEROXT extends JFrame implements Runnable {
 			super.windowClosing(e);
 			imarisLib.Disconnect();
 			Client c = client;
-			if (c!=null) {
+			if (c != null) {
 				c.disconnect();
 			}
 		}

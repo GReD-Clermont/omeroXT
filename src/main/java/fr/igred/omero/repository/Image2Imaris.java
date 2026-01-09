@@ -90,8 +90,11 @@ public final class Image2Imaris {
 		try {
 			IDataSetPrx dataset = app.GetFactory().CreateDataSet();
 			dataset.Create(type, sizeX, sizeY, sizeZ, sizeC, sizeT);
+			dataset.SetParameter("Image", "Name", image.getName());
+
 			setChannels(client, image, dataset);
 			setSpacing(client, image, dataset);
+
 			boolean created = pix.createRawDataFacility(client);
 			for (int t = 0; t < sizeT; t++) {
 				for (int z = 0; z < sizeZ; z++) {
@@ -106,6 +109,7 @@ public final class Image2Imaris {
 			if (created) {
 				pix.destroyRawDataFacility();
 			}
+
 			app.SetDataSet(dataset);
 			app.GetSurpassCamera().Fit();
 		} catch (Error | AccessException | ExecutionException e) {
@@ -232,6 +236,9 @@ public final class Image2Imaris {
 				int rgba = r + (g << shift) + (b << 2 * shift) + (a << 3 * shift);
 				imarisDataset.SetChannelColorRGBA(c, rgba);
 				imarisDataset.SetChannelName(c, image.getChannelName(client, c));
+
+				double max = image.getChannels(client).get(c).asDataObject().getGlobalMax();
+				imarisDataset.SetChannelRange(c, 0, (float) max);
 			} catch (AccessException | ServiceException | ExecutionException | Error e) {
 				LOGGER.warning(e.getMessage());
 			}
