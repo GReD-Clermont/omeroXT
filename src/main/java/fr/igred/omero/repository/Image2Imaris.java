@@ -108,11 +108,11 @@ public final class Image2Imaris {
 	private static void setDataSliceBytes(double[][] pixels, IDataSetPrx imarisDataset, int c, int z, int t)
 	throws Error {
 		int      sizeY = pixels.length;
-		int      sizeX = sizeY > 0 ? pixels[0].length:0;
-		byte[][] bytes = new byte[sizeY][sizeX];
+		int      sizeX = sizeY > 0 ? pixels[0].length : 0;
+		byte[][] bytes = new byte[sizeX][sizeY];
 		for (int y = 0; y < sizeY; y++) {
 			for (int x = 0; x < sizeX; x++) {
-				bytes[y][x] = (byte) pixels[y][x];
+				bytes[x][y] = (byte) pixels[y][x];
 			}
 		}
 		imarisDataset.SetDataSliceBytes(bytes, z, c, t);
@@ -122,11 +122,11 @@ public final class Image2Imaris {
 	private static void setDataSliceShorts(double[][] pixels, IDataSetPrx imarisDataset, int c, int z, int t)
 	throws Error {
 		int       sizeY  = pixels.length;
-		int       sizeX  = sizeY > 0 ? pixels[0].length:0;
-		short[][] shorts = new short[sizeY][sizeX];
+		int       sizeX  = sizeY > 0 ? pixels[0].length : 0;
+		short[][] shorts = new short[sizeX][sizeY];
 		for (int y = 0; y < sizeY; y++) {
 			for (int x = 0; x < sizeX; x++) {
-				shorts[y][x] = (short) pixels[y][x];
+				shorts[x][y] = (short) pixels[y][x];
 			}
 		}
 		imarisDataset.SetDataSliceShorts(shorts, z, c, t);
@@ -136,11 +136,11 @@ public final class Image2Imaris {
 	private static void setDataSliceFloats(double[][] pixels, IDataSetPrx imarisDataset, int c, int z, int t)
 	throws Error {
 		int       sizeY  = pixels.length;
-		int       sizeX  = sizeY > 0 ? pixels[0].length:0;
-		float[][] floats = new float[sizeY][sizeX];
+		int       sizeX  = sizeY > 0 ? pixels[0].length : 0;
+		float[][] floats = new float[sizeX][sizeY];
 		for (int y = 0; y < sizeY; y++) {
 			for (int x = 0; x < sizeX; x++) {
-				floats[y][x] = (float) pixels[y][x];
+				floats[x][y] = (float) pixels[y][x];
 			}
 		}
 		imarisDataset.SetDataSliceFloats(floats, z, c, t);
