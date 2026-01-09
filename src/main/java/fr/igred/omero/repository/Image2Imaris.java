@@ -31,6 +31,7 @@ import fr.igred.omero.roi.ShapeList;
 import ome.model.units.Time;
 import omero.model._TimeOperationsNC;
 
+import java.awt.Color;
 import java.awt.Shape;
 import java.awt.geom.Rectangle2D;
 import java.lang.invoke.MethodHandles;
@@ -225,20 +226,23 @@ public final class Image2Imaris {
 	 * @param imarisDataset The Imaris dataset.
 	 */
 	private static void setChannels(Client client, ImageWrapper image, IDataSetPrx imarisDataset) {
-		int       sizeC = image.getPixels().getSizeC();
-		final int shift = 8;
+		int sizeC = image.getPixels().getSizeC();
+		int shift = 8;
 		for (int c = 0; c < sizeC; c++) {
 			try {
-				int r    = image.getChannelColor(client, c).getRed();
-				int g    = image.getChannelColor(client, c).getGreen();
-				int b    = image.getChannelColor(client, c).getBlue();
-				int a    = image.getChannelColor(client, c).getAlpha();
-				int rgba = r + (g << shift) + (b << 2 * shift) + (a << 3 * shift);
-				imarisDataset.SetChannelColorRGBA(c, rgba);
-				imarisDataset.SetChannelName(c, image.getChannelName(client, c));
-
-				double max = image.getChannels(client).get(c).asDataObject().getGlobalMax();
-				imarisDataset.SetChannelRange(c, 0, (float) max);
+				Color color = image.getChannelColor(client, c);
+				if (color != null) {
+					int r    = color.getRed();
+					int g    = color.getGreen();
+					int b    = color.getBlue();
+					int a    = color.getAlpha();
+					int rgba = r + (g << shift) + (b << 2 * shift) + (a << 3 * shift);
+					imarisDataset.SetChannelColorRGBA(c, rgba);
+				}
+				String channelName = image.getChannelName(client, c);
+				if (channelName != null) {
+					imarisDataset.SetChannelName(c, channelName);
+				}
 			} catch (AccessException | ServiceException | ExecutionException | Error e) {
 				LOGGER.warning(e.getMessage());
 			}
@@ -358,12 +362,11 @@ public final class Image2Imaris {
 	 * @param imarisImage The Imaris image.
 	 * @param setter      The setter method reference.
 	 * @param value       The value to set.
-	 * @param <T>         The type of the Imaris image.
-	 * @param <U>         The type of the value.
+	 * @param <T>         The type of the value.
 	 */
-	private static <T, U extends T> void setIfNotNull(IBaseImagePrx imarisImage,
-	                                                  Setter<? super IBaseImagePrx, ? super T> setter,
-	                                                  U value) {
+	private static <T> void setIfNotNull(IBaseImagePrx imarisImage,
+	                                     Setter<? super IBaseImagePrx, ? super T> setter,
+	                                     T value) {
 		if (value != null) {
 			try {
 				setter.accept(imarisImage, value);
@@ -399,6 +402,8 @@ public final class Image2Imaris {
 
 		ILabelImagePrx labelImage = app.GetFactory().CreateLabelImage();
 		labelImage.Create(sizeX, sizeY, sizeZ, sizeT);
+		setSpacing(client, image, labelImage);
+
 		setSpacing(client, image, labelImage);
 
 		for (int index = 0; index < rois.size(); index++) {
