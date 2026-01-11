@@ -91,6 +91,22 @@
 		</allowedDuplicateClasses>
 	</properties>
 
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.openmicroscopy</groupId>
+				<artifactId>omero-model</artifactId>
+				<version>${omero-model.version}</version>
+				<exclusions>
+					<exclusion>
+						<groupId>net.jcip</groupId>
+						<artifactId>jcip-annotations</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<dependencies>
 		<dependency>
 			<groupId>fr.igred</groupId>
