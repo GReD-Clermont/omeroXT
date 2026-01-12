@@ -18,8 +18,6 @@
 package fr.igred.imaris.gui;
 
 import Imaris.Error;
-import Imaris.ILabelImagePrx;
-import Imaris.ISurfacesPrx;
 import com.bitplane.xt.BPImarisLib;
 import fr.igred.omero.Client;
 import fr.igred.omero.GenericObjectWrapper;
@@ -33,7 +31,15 @@ import fr.igred.omero.repository.Image2Imaris;
 import fr.igred.omero.repository.ImageWrapper;
 import fr.igred.omero.repository.ProjectWrapper;
 
-import javax.swing.*;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
 import java.awt.Color;
 import java.awt.Container;
 import java.awt.Dimension;
@@ -56,41 +62,62 @@ import static Imaris.IApplicationPrxHelper.checkedCast;
 import static fr.igred.omero.repository.Image2Imaris.createImarisDataset;
 import static javax.swing.JOptionPane.showMessageDialog;
 
+
 /**
  * Main window for the OMERO batch plugin.
  */
 public class OMEROXT extends JFrame implements Runnable {
 
+	/** Logger **/
 	private static final Logger LOGGER = Logger.getLogger(MethodHandles.lookup().lookupClass().getName());
 
+	/** Format string for object qualifier **/
 	private static final String FORMAT = "%%-%ds (ID:%%%dd)";
 
 	// connection management
+	/** Connection status label **/
 	private final JLabel  connectionStatus = new JLabel("Disconnected");
+	/** Connect button **/
 	private final JButton connect          = new JButton("Connect");
+	/** Disconnect button **/
 	private final JButton disconnect       = new JButton("Disconnect");
 
 	// imaris selection
+	/** Imaris instances list **/
 	private final JComboBox<Integer> imarisList = new JComboBox<>();
 
 	// group and user selection
+	/** Groups list **/
 	private final JComboBox<String> groupList = new JComboBox<>();
+	/** Users list **/
 	private final JComboBox<String> userList  = new JComboBox<>();
 
 	// choice of the dataSet
+	/** Projects list **/
 	private final JComboBox<String> projectListIn = new JComboBox<>();
+	/** Datasets list **/
 	private final JComboBox<String> datasetListIn = new JComboBox<>();
+	/** Images list **/
 	private final JComboBox<String> imageListIn   = new JComboBox<>();
 
 	//variables to keep
+	/** Imaris library **/
 	private final transient BPImarisLib               imarisLib = new BPImarisLib();
+	/** OMERO client **/
 	private transient       Client                    client;
+	/** Groups available to the user **/
 	private transient       List<GroupWrapper>        groups;
+	/** Projects available in the selected group **/
 	private transient       List<ProjectWrapper>      groupProjects;
+	/** User projects **/
 	private transient       List<ProjectWrapper>      userProjects;
+	/** User datasets **/
 	private transient       List<DatasetWrapper>      userDatasets;
+	/** User images **/
 	private transient       List<ImageWrapper>        userImages;
+	/** Users available in the selected group **/
 	private transient       List<ExperimenterWrapper> users;
+	/** Current experimenter **/
 	private transient       ExperimenterWrapper       exp;
 
 
@@ -154,7 +181,7 @@ public class OMEROXT extends JFrame implements Runnable {
 		context.add(Box.createRigidArea(smallHorizontal));
 		context.add(labelUser);
 		context.add(userList);
-		context.setBorder(BorderFactory.createTitledBorder("Group / User"));
+		context.setBorder(BorderFactory.createTitledBorder("Group & User"));
 		groupList.addItemListener(this::updateGroup);
 		userList.addItemListener(this::updateUser);
 		groupList.setFont(listFont);
@@ -213,6 +240,14 @@ public class OMEROXT extends JFrame implements Runnable {
 		imaris.setMaximumSize(imarisSize);
 
 		connection.setMaximumSize(connection.getSize());
+
+		Dimension contextSize = context.getMaximumSize();
+		contextSize.height = context.getSize().height;
+		context.setMaximumSize(contextSize);
+
+		Dimension inputSize = input.getMaximumSize();
+		inputSize.height = input.getSize().height;
+		input.setMaximumSize(inputSize);
 	}
 
 
@@ -579,16 +614,14 @@ public class OMEROXT extends JFrame implements Runnable {
 	 * Repacks this window.
 	 */
 	private void repack() {
-		Dimension minSize = this.getMinimumSize();
-		this.setMinimumSize(this.getSize());
 		this.pack();
-		this.setMinimumSize(minSize);
+		this.setMinimumSize(this.getSize());
 	}
 
 
 	/**
-	 * When an object implementing interface {@link Runnable} is used to create a thread, starting
-	 * the thread causes the object run method to be called in that separately executing thread.
+	 * When an object implementing interface {@link Runnable} is used to create a thread, starting the thread causes the
+	 * object run method to be called in that separately executing thread.
 	 * <br>
 	 * The general contract of the method {@code run} is that it may take any action whatsoever.
 	 *
@@ -598,6 +631,7 @@ public class OMEROXT extends JFrame implements Runnable {
 	public void run() {
 		this.setVisible(true);
 	}
+
 
 	private class ClientDisconnector extends WindowAdapter {
 
