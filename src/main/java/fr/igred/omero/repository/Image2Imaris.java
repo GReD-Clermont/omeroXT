@@ -22,6 +22,7 @@ import Imaris.IApplicationPrx;
 import Imaris.IBaseImagePrx;
 import Imaris.IDataSetPrx;
 import Imaris.ILabelImagePrx;
+import Imaris.ISurfacesPrx;
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.ServiceException;
@@ -68,7 +69,8 @@ public final class Image2Imaris {
 	 * @param image  The OMERO image.
 	 * @param app    The Imaris application proxy.
 	 */
-	public static void createImarisDataset(Client client, ImageWrapper image, IApplicationPrx app) {
+	public static IDataSetPrx createImarisDataset(Client client, ImageWrapper image, IApplicationPrx app)
+	throws Error, ExecutionException, AccessException {
 		PixelsWrapper pix = image.getPixels();
 
 		int sizeX = pix.getSizeX();
@@ -88,34 +90,31 @@ public final class Image2Imaris {
 			type = eTypeFloat;
 		}
 
-		try {
-			IDataSetPrx dataset = app.GetFactory().CreateDataSet();
-			dataset.Create(type, sizeX, sizeY, sizeZ, sizeC, sizeT);
-			dataset.SetParameter("Image", "Name", image.getName());
+		IDataSetPrx dataset = app.GetFactory().CreateDataSet();
+		dataset.Create(type, sizeX, sizeY, sizeZ, sizeC, sizeT);
+		dataset.SetParameter("Image", "Name", image.getName());
 
-			setChannels(client, image, dataset);
-			setSpacing(client, image, dataset);
+		setChannels(client, image, dataset);
+		setSpacing(client, image, dataset);
 
-			boolean created = pix.createRawDataFacility(client);
-			for (int t = 0; t < sizeT; t++) {
-				for (int z = 0; z < sizeZ; z++) {
-					for (int c = 0; c < sizeC; c++) {
-						PixelsWrapper.Coordinates pos = new PixelsWrapper.Coordinates(0, 0, c, z, t);
+		boolean created = pix.createRawDataFacility(client);
+		for (int t = 0; t < sizeT; t++) {
+			for (int z = 0; z < sizeZ; z++) {
+				for (int c = 0; c < sizeC; c++) {
+					PixelsWrapper.Coordinates pos = new PixelsWrapper.Coordinates(0, 0, c, z, t);
 
-						double[][] pixels = pix.getTile(client, pos, sizeX, sizeY);
-						setDataSlice(pixels, dataset, c, z, t);
-					}
+					double[][] pixels = pix.getTile(client, pos, sizeX, sizeY);
+					setDataSlice(pixels, dataset, c, z, t);
 				}
 			}
-			if (created) {
-				pix.destroyRawDataFacility();
-			}
-
-			app.SetDataSet(dataset);
-			app.GetSurpassCamera().Fit();
-		} catch (Error | AccessException | ExecutionException e) {
-			LOGGER.warning(e.getMessage());
 		}
+		if (created) {
+			pix.destroyRawDataFacility();
+		}
+
+		app.SetDataSet(dataset);
+		app.GetSurpassCamera().Fit();
+		return dataset;
 	}
 
 
@@ -378,20 +377,20 @@ public final class Image2Imaris {
 
 
 	/**
-	 * Loads the ROIs of the image into an Imaris label image.
+	 * Loads the ROIs of the image into an Imaris Surfaces object.
 	 *
 	 * @param client The OMERO client.
 	 * @param image  The OMERO image.
 	 * @param app    The Imaris application proxy.
 	 *
-	 * @return The Imaris label image containing the ROIs.
+	 * @return The Imaris Surfaces corresponding to the ROIs.
 	 *
 	 * @throws AccessException    If there is an access error.
 	 * @throws ServiceException   If there is a service error.
 	 * @throws ExecutionException If there is an execution error.
 	 * @throws Error              If there is an Imaris error.
 	 */
-	public static ILabelImagePrx loadROIs(Client client, ImageWrapper image, IApplicationPrx app)
+	public static ISurfacesPrx loadROIs(Client client, ImageWrapper image, IApplicationPrx app)
 	throws AccessException, ServiceException, ExecutionException, Error {
 		int sizeX = image.getPixels().getSizeX();
 		int sizeY = image.getPixels().getSizeY();
@@ -410,8 +409,14 @@ public final class Image2Imaris {
 			ROIWrapper roi    = rois.get(index);
 			ShapeList  shapes = roi.getShapes();
 			for (GenericShapeWrapper<?> shape : shapes) {
-				int z = shape.getZ();
-				int t = shape.getT();
+				int zpos = shape.getZ();
+				int tpos = shape.getT();
+
+				int zmin = Math.max(zpos, 0);
+				int zmax = zpos >= 0 ? zpos : sizeZ - 1;
+
+				int tmin = Math.max(tpos, 0);
+				int tmax = tpos >= 0 ? tpos : sizeT - 1;
 
 				Shape awtShape = shape.createTransformedAWTShape();
 
@@ -427,20 +432,27 @@ public final class Image2Imaris {
 				int w = bw < 0 ? 0 : x + bw >= sizeX ? sizeX - x - 1 : bw;
 				int h = bh < 0 ? 0 : y + bh >= sizeY ? sizeY - y - 1 : bh;
 
-				int[] labels = labelImage.GetDataSubVolumeAs1DArrayInts(x, y, z, t, w, h, 1);
+				for(int t=tmin; t<=tmax; t++) {
+					for(int z=zmin; z<=zmax; z++) {
+						int[] labels = labelImage.GetDataSubVolumeAs1DArrayInts(x, y, z, t, w, h, 1);
 
-				for (int j = 0; j < h; j++) {
-					for (int i = 0; i < w; i++) {
-						if (awtShape.contains(i + x, j + y)) {
-							int pos = j * w + i;
-							labels[pos] = index + 1;
+						for (int j = 0; j < h; j++) {
+							for (int i = 0; i < w; i++) {
+								if (awtShape.contains(i + x, j + y)) {
+									int pos = j * w + i;
+									labels[pos] = index + 1;
+								}
+							}
 						}
+						labelImage.SetDataSubVolumeAs1DArrayInts(labels, x, y, z, t, w, h, 1);
 					}
 				}
-				labelImage.SetDataSubVolumeAs1DArrayInts(labels, x, y, z, t, w, h, 1);
 			}
 		}
-		return labelImage;
+
+		ISurfacesPrx surfaces = app.GetImageProcessing().DetectSurfacesFromLabelImage(labelImage);
+		app.GetSurpassScene().AddChild(surfaces, -1);
+		return surfaces;
 	}
 
 

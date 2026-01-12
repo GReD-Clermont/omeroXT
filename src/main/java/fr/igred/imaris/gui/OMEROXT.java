@@ -110,9 +110,6 @@ public class OMEROXT extends JFrame implements Runnable {
 		final String imageName   = "Image Name: ";
 
 		final Font listFont = new Font(Font.MONOSPACED, Font.PLAIN, 12);
-		final Font warnFont = new Font("Arial", Font.ITALIC + Font.BOLD, 12);
-
-		final Color orange = new Color(250, 140, 0);
 
 		final Dimension smallHorizontal = new Dimension(20, 0);
 
@@ -122,13 +119,6 @@ public class OMEROXT extends JFrame implements Runnable {
 		super.setMinimumSize(super.getSize());
 		super.setLocationRelativeTo(null);
 		super.addWindowListener(new ClientDisconnector());
-
-		JPanel panelWarning = new JPanel();
-		JLabel warning      = new JLabel("Warning: all windows will be closed.");
-		warning.setForeground(orange);
-		warning.setFont(warnFont);
-		panelWarning.add(warning);
-		cp.add(panelWarning);
 
 		JPanel  imaris        = new JPanel();
 		JLabel  labelImaris   = new JLabel("Imaris instance: ");
@@ -180,7 +170,7 @@ public class OMEROXT extends JFrame implements Runnable {
 		JLabel  labelProjectIn = new JLabel(projectName);
 		JLabel  labelDatasetIn = new JLabel(datasetName);
 		JLabel  labelImageIn   = new JLabel(imageName);
-		JButton preview        = new JButton("Load");
+		JButton load           = new JButton("Load");
 		labelProjectIn.setLabelFor(projectListIn);
 		labelDatasetIn.setLabelFor(datasetListIn);
 		labelImageIn.setLabelFor(imageListIn);
@@ -193,11 +183,11 @@ public class OMEROXT extends JFrame implements Runnable {
 		input1b.add(Box.createRigidArea(smallHorizontal));
 		input1b.add(labelImageIn);
 		input1b.add(imageListIn);
-		input1b.add(preview);
+		input1b.add(load);
 		projectListIn.addItemListener(this::updateInputProject);
 		datasetListIn.addItemListener(this::updateInputDataset);
 		imageListIn.addItemListener(e -> repack());
-		preview.addActionListener(e -> loadImage());
+		load.addActionListener(e -> loadImage());
 		projectListIn.setFont(listFont);
 		datasetListIn.setFont(listFont);
 		imageListIn.setFont(listFont);
@@ -232,6 +222,7 @@ public class OMEROXT extends JFrame implements Runnable {
 	 * @param id      Object ID.
 	 * @param padName Padding used for the name.
 	 * @param padId   Padding used for the ID.
+	 *
 	 * @return The formatted object qualifier.
 	 */
 	private static String format(String name, long id, int padName, int padId) {
@@ -246,6 +237,7 @@ public class OMEROXT extends JFrame implements Runnable {
 	 * @param objects The OMERO objects.
 	 * @param mapper  The function applied to these objects.
 	 * @param <T>     The type of object.
+	 *
 	 * @return The padding required.
 	 */
 	private static <T extends GenericObjectWrapper<?>>
@@ -534,17 +526,13 @@ public class OMEROXT extends JFrame implements Runnable {
 			ImarisServer.IServerPrx vServer  = imarisLib.GetServer();
 
 			Imaris.IApplicationPrx vImarisApplication = checkedCast(vServer.GetObject(imarisID));
-			createImarisDataset(client, image, vImarisApplication);
-			if (loadROIs.isSelected()) {
-				try {
-					ILabelImagePrx label = Image2Imaris.loadROIs(client, image, vImarisApplication);
-
-					ISurfacesPrx surfaces = vImarisApplication.GetImageProcessing().DetectSurfacesFromLabelImage(label);
-
-					vImarisApplication.GetSurpassScene().AddChild(surfaces, -1);
-				} catch (AccessException | ServiceException | ExecutionException | Error e) {
-					LOGGER.warning(e.getMessage());
+			try {
+				createImarisDataset(client, image, vImarisApplication);
+				if (loadROIs.isSelected()) {
+					Image2Imaris.loadROIs(client, image, vImarisApplication);
 				}
+			} catch (AccessException | ServiceException | ExecutionException | Error e) {
+				LOGGER.warning(e.getMessage());
 			}
 		}
 	}
