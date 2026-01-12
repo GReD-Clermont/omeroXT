@@ -20,7 +20,16 @@ package fr.igred.imaris.gui;
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.ServiceException;
 
-import javax.swing.*;
+import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JDialog;
+import javax.swing.JFormattedTextField;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JTextField;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.GridLayout;
@@ -30,19 +39,29 @@ import java.text.NumberFormat;
 
 import static javax.swing.JOptionPane.showMessageDialog;
 
+
 /**
  * Connection dialog for OMERO.
  */
 public class OMEROConnectDialog extends JDialog implements ActionListener {
 
-	private final     JTextField          hostField     = new JTextField("");
-	private final     JFormattedTextField portField     = new JFormattedTextField(NumberFormat.getIntegerInstance());
-	private final     JTextField          userField     = new JTextField("");
-	private final     JPasswordField      passwordField = new JPasswordField("");
-	private final     JButton             login         = new JButton("Login");
-	private final     JButton             cancel        = new JButton("Cancel");
-	private transient Client              client;
-	private           boolean             cancelled     = false;
+	/** Host field. */
+	private final JTextField          hostField     = new JTextField("");
+	/** Port field. */
+	private final JFormattedTextField portField     = new JFormattedTextField(NumberFormat.getIntegerInstance());
+	/** User field. */
+	private final JTextField          userField     = new JTextField("");
+	/** Password field. */
+	private final JPasswordField      passwordField = new JPasswordField("");
+	/** Login button. */
+	private final JButton             login         = new JButton("Login");
+	/** Cancel button. */
+	private final JButton             cancel        = new JButton("Cancel");
+
+	/** The client to connect. */
+	private Client  client    = new Client();
+	/** True if the dialog was cancelled. */
+	private boolean cancelled = false;
 
 
 	/**
@@ -128,7 +147,7 @@ public class OMEROConnectDialog extends JDialog implements ActionListener {
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		Object source = e.getSource();
-		if (source==login) {
+		if (source == login) {
 			cancelled = false;
 			String host     = this.hostField.getText();
 			int    port     = (Integer) this.portField.getValue();
@@ -154,7 +173,7 @@ public class OMEROConnectDialog extends JDialog implements ActionListener {
 				}
 				showMessageDialog(null, message, "Error", JOptionPane.ERROR_MESSAGE);
 			}
-		} else if (source==cancel) {
+		} else if (source == cancel) {
 			cancelled = true;
 			dispose();
 		}

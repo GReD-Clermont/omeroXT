@@ -41,6 +41,7 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -60,6 +61,8 @@ import java.util.stream.Collectors;
 
 import static Imaris.IApplicationPrxHelper.checkedCast;
 import static fr.igred.omero.repository.Image2Imaris.createImarisDataset;
+import static java.awt.Font.MONOSPACED;
+import static java.awt.Font.PLAIN;
 import static javax.swing.JOptionPane.showMessageDialog;
 
 
@@ -74,7 +77,9 @@ public class OMEROXT extends JFrame implements Runnable {
 	/** Format string for object qualifier **/
 	private static final String FORMAT = "%%-%ds (ID:%%%dd)";
 
-	// connection management
+	/** Font for lists **/
+	private static final Font LIST_FONT = new Font(MONOSPACED, PLAIN, 12);
+
 	/** Connection status label **/
 	private final JLabel  connectionStatus = new JLabel("Disconnected");
 	/** Connect button **/
@@ -82,17 +87,14 @@ public class OMEROXT extends JFrame implements Runnable {
 	/** Disconnect button **/
 	private final JButton disconnect       = new JButton("Disconnect");
 
-	// imaris selection
 	/** Imaris instances list **/
 	private final JComboBox<Integer> imarisList = new JComboBox<>();
 
-	// group and user selection
 	/** Groups list **/
 	private final JComboBox<String> groupList = new JComboBox<>();
 	/** Users list **/
 	private final JComboBox<String> userList  = new JComboBox<>();
 
-	// choice of the dataSet
 	/** Projects list **/
 	private final JComboBox<String> projectListIn = new JComboBox<>();
 	/** Datasets list **/
@@ -100,25 +102,32 @@ public class OMEROXT extends JFrame implements Runnable {
 	/** Images list **/
 	private final JComboBox<String> imageListIn   = new JComboBox<>();
 
-	//variables to keep
 	/** Imaris library **/
-	private final transient BPImarisLib               imarisLib = new BPImarisLib();
+	private final transient BPImarisLib imarisLib = new BPImarisLib();
+
 	/** OMERO client **/
-	private transient       Client                    client;
+	private final Client client = new Client();
+
 	/** Groups available to the user **/
-	private transient       List<GroupWrapper>        groups;
+	private List<GroupWrapper> groups = new ArrayList<>(0);
+
 	/** Projects available in the selected group **/
-	private transient       List<ProjectWrapper>      groupProjects;
+	private List<ProjectWrapper> groupProjects = new ArrayList<>(0);
+
 	/** User projects **/
-	private transient       List<ProjectWrapper>      userProjects;
+	private List<ProjectWrapper> userProjects = new ArrayList<>(0);
+
 	/** User datasets **/
-	private transient       List<DatasetWrapper>      userDatasets;
+	private List<DatasetWrapper> userDatasets = new ArrayList<>(0);
+
 	/** User images **/
-	private transient       List<ImageWrapper>        userImages;
+	private List<ImageWrapper> userImages = new ArrayList<>(0);
+
 	/** Users available in the selected group **/
-	private transient       List<ExperimenterWrapper> users;
+	private List<ExperimenterWrapper> users = new ArrayList<>(0);
+
 	/** Current experimenter **/
-	private transient       ExperimenterWrapper       exp;
+	private ExperimenterWrapper exp = client.getUser();
 
 
 	/**
@@ -131,13 +140,7 @@ public class OMEROXT extends JFrame implements Runnable {
 		final int width  = 800;
 		final int height = 260;
 
-		final String projectName = "Project: ";
-		final String datasetName = "Dataset: ";
-		final String imageName   = "Image: ";
-
-		final Font listFont = new Font(Font.MONOSPACED, Font.PLAIN, 12);
-
-		final Dimension smallHorizontal = new Dimension(20, 0);
+		Dimension smallHorizontal = new Dimension(20, 0);
 
 		Container cp = super.getContentPane();
 
@@ -146,46 +149,12 @@ public class OMEROXT extends JFrame implements Runnable {
 		super.setLocationRelativeTo(null);
 		super.addWindowListener(new ClientDisconnector());
 
-		JPanel  imaris        = new JPanel();
-		JLabel  labelImaris   = new JLabel("Imaris instance: ");
-		JButton refreshImaris = new JButton("Refresh");
-		refreshImaris.addActionListener(e -> refreshImaris());
-		labelImaris.setLabelFor(imarisList);
-		imaris.add(labelImaris);
-		imaris.add(imarisList);
-		imaris.add(refreshImaris);
-		imaris.setBorder(BorderFactory.createTitledBorder("Imaris"));
+		JPanel imaris = createImarisPanel();
 		refreshImaris();
 
-		JPanel connection      = new JPanel();
-		JLabel labelConnection = new JLabel("Connection status: ");
-		labelConnection.setLabelFor(connectionStatus);
-		connectionStatus.setForeground(Color.RED);
-		connection.add(labelConnection);
-		connection.add(connectionStatus);
-		connection.add(Box.createRigidArea(smallHorizontal));
-		connection.add(connect);
-		connection.add(disconnect);
-		disconnect.setVisible(false);
-		connect.addActionListener(e -> connect());
-		disconnect.addActionListener(e -> disconnect());
-		connection.setBorder(BorderFactory.createTitledBorder("Connection"));
+		JPanel connection = createConnectionPanel();
 
-		JLabel labelGroup = new JLabel("Group: ");
-		JLabel labelUser  = new JLabel("User: ");
-		labelGroup.setLabelFor(groupList);
-		labelUser.setLabelFor(userList);
-		JPanel context = new JPanel();
-		context.add(labelGroup);
-		context.add(groupList);
-		context.add(Box.createRigidArea(smallHorizontal));
-		context.add(labelUser);
-		context.add(userList);
-		context.setBorder(BorderFactory.createTitledBorder("Group & User"));
-		groupList.addItemListener(this::updateGroup);
-		userList.addItemListener(this::updateUser);
-		groupList.setFont(listFont);
-		userList.setFont(listFont);
+		JPanel context = createContextPanel();
 
 		JPanel header = new JPanel();
 		header.setLayout(new BoxLayout(header, BoxLayout.LINE_AXIS));
@@ -194,41 +163,10 @@ public class OMEROXT extends JFrame implements Runnable {
 		header.add(context);
 		cp.add(header);
 
-		JLabel labelProjectIn = new JLabel(projectName);
-		JLabel labelDatasetIn = new JLabel(datasetName);
-		JLabel labelImageIn   = new JLabel(imageName);
-		labelProjectIn.setLabelFor(projectListIn);
-		labelDatasetIn.setLabelFor(datasetListIn);
-		labelImageIn.setLabelFor(imageListIn);
-		JPanel containers = new JPanel();
-		containers.add(labelProjectIn);
-		containers.add(projectListIn);
-		containers.add(Box.createRigidArea(smallHorizontal));
-		containers.add(labelDatasetIn);
-		containers.add(datasetListIn);
-		JPanel images = new JPanel();
-		images.add(labelImageIn);
-		images.add(imageListIn);
-		JPanel input = new JPanel();
-		input.add(containers);
-		input.add(images);
-		input.setLayout(new BoxLayout(input, BoxLayout.PAGE_AXIS));
-		input.setBorder(BorderFactory.createTitledBorder("Input"));
-		projectListIn.addItemListener(this::updateInputProject);
-		datasetListIn.addItemListener(this::updateInputDataset);
-		imageListIn.addItemListener(e -> repack());
-		projectListIn.setFont(listFont);
-		datasetListIn.setFont(listFont);
-		imageListIn.setFont(listFont);
+		JPanel input = createInputPanel();
 		cp.add(input);
 
-		JPanel  actions   = new JPanel();
-		JButton loadImage = new JButton("Load image");
-		JButton loadROIs  = new JButton("Load ROIs");
-		loadImage.addActionListener(e -> loadImage());
-		loadROIs.addActionListener(e -> loadROIs());
-		actions.add(loadImage);
-		actions.add(loadROIs);
+		JPanel actions = createActionsPanel();
 		cp.add(actions);
 
 		cp.setLayout(new BoxLayout(cp, BoxLayout.PAGE_AXIS));
@@ -236,7 +174,7 @@ public class OMEROXT extends JFrame implements Runnable {
 		repack();
 
 		Dimension imarisSize = imaris.getSize();
-		imarisSize.width += 50;
+		imarisSize.width += smallHorizontal.width;
 		imaris.setMaximumSize(imarisSize);
 
 		connection.setMaximumSize(connection.getSize());
@@ -259,6 +197,16 @@ public class OMEROXT extends JFrame implements Runnable {
 	public OMEROXT(int aImarisID) {
 		this();
 		this.imarisList.setSelectedItem(aImarisID);
+	}
+
+
+	/**
+	 * Creates an horizontal rigid area of fixed size.
+	 *
+	 * @return The horizontal rigid area.
+	 */
+	private static Component createHorizontalRigidArea() {
+		return Box.createRigidArea(new Dimension(10, 0));
 	}
 
 
@@ -335,11 +283,157 @@ public class OMEROXT extends JFrame implements Runnable {
 
 
 	/**
+	 * Creates the Imaris panel.
+	 *
+	 * @return The Imaris panel.
+	 */
+	private JPanel createImarisPanel() {
+		JPanel  imaris        = new JPanel();
+		JLabel  labelImaris   = new JLabel("Instance: ");
+		JButton refreshImaris = new JButton("Refresh");
+		refreshImaris.addActionListener(e -> refreshImaris());
+		labelImaris.setLabelFor(imarisList);
+		imaris.add(labelImaris);
+		imaris.add(imarisList);
+		imaris.add(createHorizontalRigidArea());
+		imaris.add(refreshImaris);
+		imaris.setBorder(BorderFactory.createTitledBorder("Imaris"));
+		return imaris;
+	}
+
+
+	/**
+	 * Creates the connection panel.
+	 *
+	 * @return The connection panel.
+	 */
+	private JPanel createConnectionPanel() {
+		JPanel connection      = new JPanel();
+		JLabel labelConnection = new JLabel("Status: ");
+		labelConnection.setLabelFor(connectionStatus);
+		connectionStatus.setForeground(Color.RED);
+		connection.add(labelConnection);
+		connection.add(connectionStatus);
+		connection.add(createHorizontalRigidArea());
+		connection.add(connect);
+		connection.add(disconnect);
+		disconnect.setVisible(false);
+		connect.addActionListener(e -> connect());
+		disconnect.addActionListener(e -> disconnect());
+		connection.setBorder(BorderFactory.createTitledBorder("Connection"));
+		return connection;
+	}
+
+
+	/**
+	 * Creates the context panel.
+	 *
+	 * @return The context panel.
+	 */
+	private JPanel createContextPanel() {
+		JLabel labelGroup = new JLabel("Group: ");
+		JLabel labelUser  = new JLabel("User: ");
+		labelGroup.setLabelFor(groupList);
+		labelUser.setLabelFor(userList);
+
+		JPanel context = new JPanel();
+		context.add(labelGroup);
+		context.add(groupList);
+		context.add(createHorizontalRigidArea());
+		context.add(labelUser);
+		context.add(userList);
+		context.setBorder(BorderFactory.createTitledBorder("Group & User"));
+
+		groupList.addItemListener(this::updateGroup);
+		userList.addItemListener(this::updateUser);
+		groupList.setFont(LIST_FONT);
+		userList.setFont(LIST_FONT);
+
+		return context;
+	}
+
+
+	/**
+	 * Creates the containers panel.
+	 *
+	 * @return The containers panel.
+	 */
+	private JPanel createContainersPanel() {
+		JLabel labelProjectIn = new JLabel("Project: ");
+		JLabel labelDatasetIn = new JLabel("Dataset: ");
+		labelProjectIn.setLabelFor(projectListIn);
+		labelDatasetIn.setLabelFor(datasetListIn);
+
+		JPanel containers = new JPanel();
+		containers.add(labelProjectIn);
+		containers.add(projectListIn);
+		containers.add(createHorizontalRigidArea());
+		containers.add(labelDatasetIn);
+		containers.add(datasetListIn);
+		return containers;
+	}
+
+
+	/**
+	 * Creates the images panel.
+	 *
+	 * @return The images panel.
+	 */
+	private JPanel createImagesPanel() {
+		JLabel labelImageIn = new JLabel("Image: ");
+		labelImageIn.setLabelFor(imageListIn);
+		JPanel images = new JPanel();
+		images.add(labelImageIn);
+		images.add(imageListIn);
+		return images;
+	}
+
+
+	/**
+	 * Creates the input panel.
+	 *
+	 * @return The input panel.
+	 */
+	private JPanel createInputPanel() {
+		JPanel input = new JPanel();
+		input.add(createContainersPanel());
+		input.add(createImagesPanel());
+		input.setLayout(new BoxLayout(input, BoxLayout.PAGE_AXIS));
+		input.setBorder(BorderFactory.createTitledBorder("Input"));
+		projectListIn.addItemListener(this::updateInputProject);
+		datasetListIn.addItemListener(this::updateInputDataset);
+		imageListIn.addItemListener(e -> repack());
+		projectListIn.setFont(LIST_FONT);
+		datasetListIn.setFont(LIST_FONT);
+		imageListIn.setFont(LIST_FONT);
+		return input;
+	}
+
+
+	/**
+	 * Creates the actions panel containing the action buttons.
+	 *
+	 * @return The actions panel.
+	 */
+	private JPanel createActionsPanel() {
+		JPanel  actions   = new JPanel();
+		JButton loadImage = new JButton("Load image");
+		JButton loadROIs  = new JButton("Load ROIs");
+		loadImage.addActionListener(e -> loadImage());
+		loadROIs.addActionListener(e -> loadROIs());
+		actions.add(loadImage);
+		actions.add(loadROIs);
+		return actions;
+	}
+
+
+	/**
 	 * Refreshes the list of Imaris instances.
 	 */
 	private void refreshImaris() {
 		ImarisServer.IServerPrx vServer = imarisLib.GetServer();
-		int                     nImaris = 0;
+
+		int nImaris = 0;
 		if (vServer != null) {
 			nImaris = vServer.GetNumberOfObjects();
 		}
@@ -507,11 +601,9 @@ public class OMEROXT extends JFrame implements Runnable {
 	 * @return True if the connection was successful.
 	 */
 	private boolean connect() {
-		final Color green     = new Color(0, 153, 0);
-		boolean     connected = false;
-		if (client == null) {
-			client = new Client();
-		}
+		Color   green     = new Color(0, 153, 0);
+		boolean connected = false;
+
 		OMEROConnectDialog connectDialog = new OMEROConnectDialog();
 		connectDialog.connect(client);
 		if (!connectDialog.wasCancelled()) {
@@ -633,21 +725,27 @@ public class OMEROXT extends JFrame implements Runnable {
 	}
 
 
+	/**
+	 * Window adapter to disconnect the client when closing the window.
+	 */
 	private class ClientDisconnector extends WindowAdapter {
 
+		/** Constructor **/
 		ClientDisconnector() {
 		}
 
 
+		/**
+		 * Invoked when a window is in the process of being closed.
+		 *
+		 * @param e the event to be processed
+		 */
 		@SuppressWarnings("SyntheticAccessorCall")
 		@Override
 		public void windowClosing(WindowEvent e) {
 			super.windowClosing(e);
 			imarisLib.Disconnect();
-			Client c = client;
-			if (c != null) {
-				c.disconnect();
-			}
+			client.disconnect();
 		}
 
 	}
