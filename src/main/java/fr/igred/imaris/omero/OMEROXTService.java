@@ -25,7 +25,7 @@ import fr.igred.omero.IntegratedClient;
 import fr.igred.omero.OMEROException;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.ServiceException;
-import fr.igred.omero.repository.ROI2Imaris;
+import fr.igred.omero.roi.ROI2Imaris;
 
 import java.util.ArrayList;
 import java.util.Collections;

@@ -15,7 +15,7 @@
  * Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-package fr.igred.omero.repository;
+package fr.igred.omero.roi;
 
 import Imaris.Error;
 import Imaris.IApplicationPrx;
@@ -24,16 +24,12 @@ import Imaris.ISurfacesPrx;
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.ServiceException;
-import fr.igred.omero.roi.GenericShapeWrapper;
-import fr.igred.omero.roi.ROIWrapper;
-import fr.igred.omero.roi.ShapeList;
+import fr.igred.omero.repository.ImageWrapper;
 
 import java.awt.Shape;
 import java.awt.geom.Rectangle2D;
-import java.lang.invoke.MethodHandles;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.logging.Logger;
 
 import static fr.igred.omero.repository.Image2Imaris.setSpacing;
 
@@ -42,9 +38,6 @@ import static fr.igred.omero.repository.Image2Imaris.setSpacing;
  * Utility class for creating Imaris datasets from OMERO images.
  */
 public final class ROI2Imaris {
-
-	/** Logger for logging messages and errors. */
-	private static final Logger LOGGER = Logger.getLogger(MethodHandles.lookup().lookupClass().getName());
 
 
 	/**
@@ -108,8 +101,8 @@ public final class ROI2Imaris {
 				int w = bw < 0 ? 0 : x + bw >= sizeX ? sizeX - x - 1 : bw;
 				int h = bh < 0 ? 0 : y + bh >= sizeY ? sizeY - y - 1 : bh;
 
-				for(int t=tmin; t<=tmax; t++) {
-					for(int z=zmin; z<=zmax; z++) {
+				for (int t = tmin; t <= tmax; t++) {
+					for (int z = zmin; z <= zmax; z++) {
 						int[] labels = labelImage.GetDataSubVolumeAs1DArrayInts(x, y, z, t, w, h, 1);
 
 						for (int j = 0; j < h; j++) {
