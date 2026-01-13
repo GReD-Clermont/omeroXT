@@ -17,7 +17,9 @@
 
 package fr.igred.imaris.omero;
 
+import fr.igred.imaris.exception.OMEROException;
 import fr.igred.omero.Client;
+import fr.igred.omero.GenericObjectWrapper;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.OMEROServerError;
 import fr.igred.omero.exception.ServiceException;
@@ -28,16 +30,22 @@ import fr.igred.omero.repository.ImageWrapper;
 import fr.igred.omero.repository.ProjectWrapper;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 
 /**
  * OMERO client to connect and browse through the data.
  */
 public class OMEROClient {
+
+	/** Format string for object qualifier **/
+	private static final String FORMAT = "%%-%ds (ID:%%%dd)";
 
 	/** OMERO client **/
 	protected final Client client = new Client();
@@ -62,6 +70,71 @@ public class OMEROClient {
 
 	/** Users available in the selected group **/
 	private List<ExperimenterWrapper> users = new ArrayList<>(0);
+
+
+	/**
+	 * Formats the object name using its ID and some padding.
+	 *
+	 * @param name    Object name.
+	 * @param id      Object ID.
+	 * @param padName Padding used for the name.
+	 * @param padId   Padding used for the ID.
+	 *
+	 * @return The formatted object qualifier.
+	 */
+	private static String format(String name, long id, int padName, int padId) {
+		String format = String.format(FORMAT, padName, padId);
+		return String.format(format, name, id);
+	}
+
+
+	/**
+	 * Gets the number of digits in an OMERO object ID (in base 10).
+	 *
+	 * @param object The OMERO object.
+	 *
+	 * @return The number of digits.
+	 */
+	private static Number getIDNbDigits(GenericObjectWrapper<?> object) {
+		return StrictMath.log10(object.getId()) + 1;
+	}
+
+
+	/**
+	 * Gets the padding value for a list of OMERO objects.
+	 *
+	 * @param objects The OMERO objects.
+	 * @param mapper  The function applied to these objects.
+	 * @param <T>     The type of object.
+	 *
+	 * @return The padding required.
+	 */
+	private static <T extends GenericObjectWrapper<?>>
+	int getListPadding(Collection<T> objects, Function<? super T, ? extends Number> mapper) {
+		return objects.stream()
+		              .map(mapper)
+		              .mapToInt(Number::intValue)
+		              .max()
+		              .orElse(0);
+	}
+
+
+	/**
+	 * Adds items from a list of OMERO objects to a String JComboBox.
+	 *
+	 * @param objects    The OMERO objects.
+	 * @param nameMapper The function to get the name of these objects.
+	 * @param <T>        The type of object.
+	 */
+	private static <T extends GenericObjectWrapper<?>>
+	List<String> formatList(Collection<T> objects, Function<? super T, String> nameMapper) {
+		int padName = getListPadding(objects, o -> nameMapper.apply(o).length());
+		int padId   = getListPadding(objects, OMEROClient::getIDNbDigits) + 1;
+
+		return objects.stream()
+		              .map(o -> format(nameMapper.apply(o), o.getId(), padName, padId))
+		              .collect(Collectors.toList());
+	}
 
 
 	/**
@@ -112,6 +185,16 @@ public class OMEROClient {
 
 
 	/**
+	 * Returns the names of the groups available to the user.
+	 *
+	 * @return See above.
+	 */
+	public List<String> getGroupNames() {
+		return formatList(getGroups(), GroupWrapper::getName);
+	}
+
+
+	/**
 	 * Returns the projects available in the selected group.
 	 *
 	 * @return See above.
@@ -128,6 +211,16 @@ public class OMEROClient {
 	 */
 	public List<ProjectWrapper> getUserProjects() {
 		return Collections.unmodifiableList(userProjects);
+	}
+
+
+	/**
+	 * Returns the names of the projects owned by the selected user in the selected group.
+	 *
+	 * @return See above.
+	 */
+	public List<String> getUserProjectNames() {
+		return formatList(getUserProjects(), ProjectWrapper::getName);
 	}
 
 
@@ -154,6 +247,16 @@ public class OMEROClient {
 
 
 	/**
+	 * Returns the names of the datasets owned by the selected user in the selected project.
+	 *
+	 * @return See above.
+	 */
+	public List<String> getUserDatasetNames() {
+		return formatList(getUserDatasets(), DatasetWrapper::getName);
+	}
+
+
+	/**
 	 * Returns the dataset at the specified index in the user dataset list.
 	 *
 	 * @param index The index of the dataset to return.
@@ -176,6 +279,16 @@ public class OMEROClient {
 
 
 	/**
+	 * Returns the names of the images owned by the selected user in the selected dataset.
+	 *
+	 * @return See above.
+	 */
+	public List<String> getUserImageNames() {
+		return formatList(getUserImages(), ImageWrapper::getName);
+	}
+
+
+	/**
 	 * Returns the image at the specified index in the user images list.
 	 *
 	 * @param index The index of the dataset to return.
@@ -194,6 +307,16 @@ public class OMEROClient {
 	 */
 	public List<ExperimenterWrapper> getUsers() {
 		return Collections.unmodifiableList(users);
+	}
+
+
+	/**
+	 * Returns the names of the users available in the selected group.
+	 *
+	 * @return See above.
+	 */
+	public List<String> getUserNames() {
+		return formatList(getUsers(), ExperimenterWrapper::getUserName);
 	}
 
 
@@ -221,17 +344,19 @@ public class OMEROClient {
 	 *
 	 * @return True if the connection was successful
 	 *
-	 * @throws AccessException  Cannot access data.
-	 * @throws ServiceException Cannot connect to OMERO.
+	 * @throws OMEROException Cannot connect to OMERO or access data.
 	 */
-	public boolean connect(OMEROConnector connector)
-	throws AccessException, ServiceException, ExecutionException {
+	public boolean connect(OMEROConnector connector) throws OMEROException {
 		cleanUp();
 		connector.connect(client);
 		boolean connected = client.isConnected();
 		if (connected) {
-			user = client.getUser(client.getUser().getUserName());
-			groups = client.getGroups();
+			try {
+				user = client.getUser(client.getUser().getUserName());
+				groups = client.getGroups();
+			} catch (ExecutionException | AccessException | ServiceException e) {
+				throw new OMEROException(e.getMessage(), e);
+			}
 
 			groups.removeIf(g -> g.getId() <= 2);
 			groups.sort(Comparator.comparing(GroupWrapper::getName,
@@ -264,12 +389,9 @@ public class OMEROClient {
 	 *
 	 * @param groupIndex The index of the group to select after loading.
 	 *
-	 * @throws AccessException    Cannot access data.
-	 * @throws ServiceException   Cannot connect to OMERO.
-	 * @throws ExecutionException A Facility can't be retrieved or instantiated.
+	 * @throws OMEROException Cannot connect to OMERO or access data.
 	 */
-	public void switchGroup(int groupIndex)
-	throws AccessException, ServiceException, ExecutionException {
+	public void switchGroup(int groupIndex) throws OMEROException {
 		users.clear();
 		groupProjects.clear();
 		userProjects.clear();
@@ -278,11 +400,15 @@ public class OMEROClient {
 
 		GroupWrapper group = groups.get(groupIndex);
 		client.switchGroup(group.getGroupId());
-		groupProjects = client.getProjects();
-		groupProjects.sort(Comparator.comparing(ProjectWrapper::getName,
-		                                        String.CASE_INSENSITIVE_ORDER));
-		GroupWrapper updatedGroup = client.getGroup(group.getName());
-		users = updatedGroup.getExperimenters();
+		try {
+			groupProjects = client.getProjects();
+			groupProjects.sort(Comparator.comparing(ProjectWrapper::getName,
+			                                        String.CASE_INSENSITIVE_ORDER));
+			GroupWrapper updatedGroup = client.getGroup(group.getName());
+			users = updatedGroup.getExperimenters();
+		} catch (AccessException | ServiceException | ExecutionException e) {
+			throw new OMEROException(e.getMessage(), e);
+		}
 		users.sort(Comparator.comparing(ExperimenterWrapper::getUserName));
 	}
 
@@ -295,7 +421,7 @@ public class OMEROClient {
 	public void loadUserProjects(int experimenterIndex) {
 		userImages.clear();
 		userDatasets.clear();
-		userProjects = new ArrayList<>(groupProjects);
+		userProjects = new ArrayList<>(getGroupProjects());
 		if (experimenterIndex > 0) {
 			long userId = users.get(experimenterIndex).getId();
 			userProjects.removeIf(p -> p.getOwner().getId() != userId);
@@ -309,23 +435,24 @@ public class OMEROClient {
 	 *
 	 * @param projectIndex The selected project index.
 	 *
-	 * @throws AccessException    Cannot access data.
-	 * @throws ServiceException   Cannot connect to OMERO.
-	 * @throws ExecutionException A Facility can't be retrieved or instantiated.
+	 * @throws OMEROException Cannot connect to OMERO or access data.
 	 */
-	public void loadUserDatasets(int projectIndex)
-	throws AccessException, ServiceException, ExecutionException, OMEROServerError {
+	public void loadUserDatasets(int projectIndex) throws OMEROException {
 		userImages.clear();
-		if (projectIndex < 0) {
-			userDatasets = client.getDatasets();
-		} else if (projectIndex >= userProjects.size()) {
-			userDatasets = client.getOrphanedDatasets();
-		} else {
-			ProjectWrapper project = getUserProject(projectIndex);
-			project.reload(client);
-			userDatasets = project.getDatasets();
-			userDatasets.sort(Comparator.comparing(DatasetWrapper::getName,
-			                                       String.CASE_INSENSITIVE_ORDER));
+		try {
+			if (projectIndex < 0) {
+				userDatasets = client.getDatasets();
+			} else if (projectIndex >= userProjects.size()) {
+				userDatasets = client.getOrphanedDatasets();
+			} else {
+				ProjectWrapper project = getUserProject(projectIndex);
+				project.reload(client);
+				userDatasets = project.getDatasets();
+				userDatasets.sort(Comparator.comparing(DatasetWrapper::getName,
+				                                       String.CASE_INSENSITIVE_ORDER));
+			}
+		} catch (AccessException | ServiceException | ExecutionException | OMEROServerError e) {
+			throw new OMEROException(e.getMessage(), e);
 		}
 	}
 
@@ -335,16 +462,17 @@ public class OMEROClient {
 	 *
 	 * @param datasetIndex The selected dataset index.
 	 *
-	 * @throws AccessException    Cannot access data.
-	 * @throws ServiceException   Cannot connect to OMERO.
-	 * @throws ExecutionException A Facility can't be retrieved or instantiated.
+	 * @throws OMEROException Cannot connect to OMERO or access data.
 	 */
-	public void loadUserImages(int datasetIndex)
-	throws AccessException, ServiceException, ExecutionException {
+	public void loadUserImages(int datasetIndex) throws OMEROException {
 		if (datasetIndex >= 0 && datasetIndex < userDatasets.size()) {
-			userImages = getUserDataset(datasetIndex).getImages(client);
-			userImages.sort(Comparator.comparing(ImageWrapper::getName,
-			                                     String.CASE_INSENSITIVE_ORDER));
+			try {
+				userImages = getUserDataset(datasetIndex).getImages(client);
+				userImages.sort(Comparator.comparing(ImageWrapper::getName,
+				                                     String.CASE_INSENSITIVE_ORDER));
+			} catch (AccessException | ExecutionException | ServiceException e) {
+				throw new OMEROException(e.getMessage(), e);
+			}
 		} else {
 			userImages.clear();
 		}

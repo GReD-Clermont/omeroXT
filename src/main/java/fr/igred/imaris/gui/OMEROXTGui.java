@@ -17,18 +17,10 @@
 
 package fr.igred.imaris.gui;
 
-import Imaris.Error;
+import fr.igred.imaris.exception.ImarisError;
+import fr.igred.imaris.exception.OMEROException;
 import fr.igred.imaris.omero.OMEROConnector;
 import fr.igred.imaris.omero.OMEROXTService;
-import fr.igred.omero.GenericObjectWrapper;
-import fr.igred.omero.exception.AccessException;
-import fr.igred.omero.exception.OMEROServerError;
-import fr.igred.omero.exception.ServiceException;
-import fr.igred.omero.meta.ExperimenterWrapper;
-import fr.igred.omero.meta.GroupWrapper;
-import fr.igred.omero.repository.DatasetWrapper;
-import fr.igred.omero.repository.ImageWrapper;
-import fr.igred.omero.repository.ProjectWrapper;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -48,13 +40,6 @@ import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.lang.invoke.MethodHandles;
-import java.util.Collection;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.concurrent.ExecutionException;
-import java.util.function.Function;
-import java.util.logging.Logger;
 
 import static java.awt.Font.MONOSPACED;
 import static java.awt.Font.PLAIN;
@@ -65,12 +50,6 @@ import static javax.swing.JOptionPane.showMessageDialog;
  * Main window for the OMERO XT application.
  */
 public class OMEROXTGui extends JFrame implements Runnable {
-
-	/** Logger **/
-	private static final Logger LOGGER = Logger.getLogger(MethodHandles.lookup().lookupClass().getName());
-
-	/** Format string for object qualifier **/
-	private static final String FORMAT = "%%-%ds (ID:%%%dd)";
 
 	/** Font for lists **/
 	private static final Font LIST_FONT = new Font(MONOSPACED, PLAIN, 12);
@@ -180,84 +159,37 @@ public class OMEROXTGui extends JFrame implements Runnable {
 
 
 	/**
-	 * Formats the object name using its ID and some padding.
+	 * Adds items from a {@code List<String>} to a {@code JComboBox<String>}.
 	 *
-	 * @param name    Object name.
-	 * @param id      Object ID.
-	 * @param padName Padding used for the name.
-	 * @param padId   Padding used for the ID.
-	 *
-	 * @return The formatted object qualifier.
+	 * @param objNames The names.
+	 * @param box      The JComboBox to populate.
 	 */
-	private static String format(String name, long id, int padName, int padId) {
-		String format = String.format(FORMAT, padName, padId);
-		return String.format(format, name, id);
-	}
-
-
-	/**
-	 * Gets the padding value for a list of OMERO objects.
-	 *
-	 * @param objects The OMERO objects.
-	 * @param mapper  The function applied to these objects.
-	 * @param <T>     The type of object.
-	 *
-	 * @return The padding required.
-	 */
-	private static <T extends GenericObjectWrapper<?>>
-	int getListPadding(Collection<T> objects, Function<? super T, ? extends Number> mapper) {
-		return objects.stream()
-		              .map(mapper)
-		              .mapToInt(Number::intValue)
-		              .max()
-		              .orElse(0);
-	}
-
-
-	/**
-	 * Adds items from a list of OMERO objects to a String JComboBox.
-	 *
-	 * @param objects    The OMERO objects.
-	 * @param nameMapper The function to get the name of these objects.
-	 * @param list       The list to populate.
-	 * @param <T>        The type of object.
-	 */
-	private static <T extends GenericObjectWrapper<?>>
-	void updateBox(Collection<T> objects,
-	               Function<? super T, String> nameMapper,
-	               JComboBox<? super String> list) {
+	private static void updateBox(Iterable<String> objNames,
+	                              JComboBox<? super String> box,
+	                              int defaultIndex) {
 		// Preserve action listeners
-		ActionListener[] actionListeners = list.getActionListeners();
+		ActionListener[] actionListeners = box.getActionListeners();
 
 		// Remove them temporarily
 		for (ActionListener listener : actionListeners) {
-			list.removeActionListener(listener);
+			box.removeActionListener(listener);
 		}
 
 		// Populate the list
-		list.removeAllItems();
-		int padName = getListPadding(objects, o -> nameMapper.apply(o).length());
-		int padId   = getListPadding(objects, OMEROXTGui::getIDNbDigits) + 1;
-		for (T object : objects) {
-			list.addItem(format(nameMapper.apply(object), object.getId(), padName, padId));
+		box.removeAllItems();
+		for (String objName : objNames) {
+			box.addItem(objName);
 		}
 
 		// Re-add action listeners
 		for (ActionListener listener : actionListeners) {
-			list.addActionListener(listener);
+			box.addActionListener(listener);
 		}
-	}
 
-
-	/**
-	 * Gets the number of digits in an OMERO object ID (in base 10).
-	 *
-	 * @param object The OMERO object.
-	 *
-	 * @return The number of digits.
-	 */
-	private static Number getIDNbDigits(GenericObjectWrapper<?> object) {
-		return StrictMath.log10(object.getId()) + 1;
+		// Select the default index if possible
+		if (box.getItemCount() > 0) {
+			box.setSelectedIndex(defaultIndex);
+		}
 	}
 
 
@@ -454,16 +386,12 @@ public class OMEROXTGui extends JFrame implements Runnable {
 				int datasetIndex = box.getSelectedIndex();
 				try {
 					omeroxt.loadUserImages(datasetIndex);
-				} catch (AccessException | ServiceException | ExecutionException ex) {
-					LOGGER.warning(ex.getMessage());
+				} catch (OMEROException ex) {
+					errorWindow(ex.getMessage());
 				}
-				List<ImageWrapper> userImages = omeroxt.getUserImages();
 
 				imageListIn.removeAllItems();
-				updateBox(userImages, ImageWrapper::getName, imageListIn);
-				if (!userImages.isEmpty()) {
-					imageListIn.setSelectedIndex(0);
-				}
+				updateBox(omeroxt.getUserImageNames(), imageListIn, 0);
 			}
 		}
 		this.repack();
@@ -483,17 +411,13 @@ public class OMEROXTGui extends JFrame implements Runnable {
 
 				try {
 					omeroxt.loadUserDatasets(projectIndex);
-				} catch (AccessException | ServiceException | ExecutionException | OMEROServerError ex) {
-					LOGGER.warning(ex.getMessage());
+				} catch (OMEROException ex) {
+					errorWindow(ex.getMessage());
 				}
-				List<DatasetWrapper> userDatasets = omeroxt.getUserDatasets();
 
 				imageListIn.removeAllItems();
 				datasetListIn.removeAllItems();
-				updateBox(userDatasets, DatasetWrapper::getName, datasetListIn);
-				if (!userDatasets.isEmpty()) {
-					datasetListIn.setSelectedIndex(0);
-				}
+				updateBox(omeroxt.getUserDatasetNames(), datasetListIn, 0);
 			}
 		}
 	}
@@ -510,15 +434,10 @@ public class OMEROXTGui extends JFrame implements Runnable {
 
 			omeroxt.loadUserProjects(userIndex);
 
-			List<ProjectWrapper> userProjects = omeroxt.getUserProjects();
-
 			imageListIn.removeAllItems();
 			datasetListIn.removeAllItems();
-			updateBox(userProjects, ProjectWrapper::getName, projectListIn);
+			updateBox(omeroxt.getUserProjectNames(), projectListIn, 0);
 			projectListIn.addItem("[Orphaned datasets]");
-			if (!userProjects.isEmpty()) {
-				projectListIn.setSelectedIndex(0);
-			}
 		}
 	}
 
@@ -534,17 +453,16 @@ public class OMEROXTGui extends JFrame implements Runnable {
 
 			try {
 				omeroxt.switchGroup(groupIndex);
-			} catch (ServiceException | ExecutionException | AccessException exception) {
-				LOGGER.warning(exception.getMessage());
+			} catch (OMEROException ex) {
+				errorWindow(ex.getMessage());
 			}
 
-			List<ExperimenterWrapper> users = omeroxt.getUsers();
+			updateBox(omeroxt.getUserNames(), userList, -1);
 
-			updateBox(users, ExperimenterWrapper::getUserName, userList);
+			// Add "All members" option
 			userList.insertItemAt("All members", 0);
-
+			// Select current user (+1 because of "All members" option)
 			int userIndex = omeroxt.getUserIndex(omeroxt.getUser().getId());
-			// Add 1 to skip "All members"
 			userList.setSelectedIndex(userIndex + 1);
 		}
 	}
@@ -559,23 +477,17 @@ public class OMEROXTGui extends JFrame implements Runnable {
 		OMEROConnector connectDialog = new OMEROConnectDialog();
 		try {
 			omeroxt.connect(connectDialog);
-		} catch (ExecutionException | ServiceException | AccessException | NoSuchElementException e) {
-			LOGGER.warning(e.getCause().getMessage());
+		} catch (OMEROException ex) {
+			errorWindow(ex.getMessage());
 		}
-		long currentGroupId = omeroxt.getCurrentGroupId();
+		int groupIndex = omeroxt.getGroupIndex(omeroxt.getCurrentGroupId());
 
-		List<GroupWrapper> groups = omeroxt.getGroups();
-
-		updateBox(groups, GroupWrapper::getName, groupList);
+		updateBox(omeroxt.getGroupNames(), groupList, groupIndex);
 
 		connectionStatus.setText("Connected");
 		connectionStatus.setForeground(green);
 		connect.setVisible(false);
 		disconnect.setVisible(true);
-
-		int groupIndex = omeroxt.getGroupIndex(currentGroupId);
-		groupList.setSelectedIndex(-1);
-		groupList.setSelectedIndex(groupIndex);
 	}
 
 
@@ -640,8 +552,8 @@ public class OMEROXTGui extends JFrame implements Runnable {
 		if (imageIndex >= 0 && imarisIdx >= 0) {
 			try {
 				omeroxt.loadImage(imageIndex, imarisIdx);
-			} catch (AccessException | ExecutionException | Error e) {
-				LOGGER.warning(e.getMessage());
+			} catch (OMEROException | ImarisError e) {
+				errorWindow(e.getMessage());
 			}
 		} else {
 			warningWindow("No image or Imaris instance selected.");
@@ -659,8 +571,8 @@ public class OMEROXTGui extends JFrame implements Runnable {
 		if (imageIndex >= 0 && imarisIdx >= 0) {
 			try {
 				omeroxt.loadROIs(imageIndex, imarisIdx);
-			} catch (AccessException | ServiceException | ExecutionException | Error e) {
-				LOGGER.warning(e.getMessage());
+			} catch (OMEROException | ImarisError e) {
+				errorWindow(e.getMessage());
 			}
 		} else {
 			warningWindow("No image or Imaris instance selected.");

@@ -21,10 +21,11 @@ import Imaris.Error;
 import Imaris.IApplicationPrx;
 import ImarisServer.IServerPrx;
 import com.bitplane.xt.BPImarisLib;
+import fr.igred.imaris.exception.ImarisError;
+import fr.igred.imaris.exception.OMEROException;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.ServiceException;
 import fr.igred.omero.repository.Image2Imaris;
-import fr.igred.omero.repository.ImageWrapper;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -94,19 +95,24 @@ public class OMEROXTService extends OMEROClient {
 	 * @param imageIndex  The index of the image to load.
 	 * @param imarisIndex The Imaris instance ID index.
 	 *
-	 * @throws AccessException    Cannot access data.
-	 * @throws Error              Imaris error.
-	 * @throws ExecutionException A Facility can't be retrieved or instantiated.
+	 * @throws OMEROException Cannot connect to OMERO or access data.
+	 * @throws ImarisError    Imaris error.
 	 */
 	public void loadImage(int imageIndex, int imarisIndex)
-	throws AccessException, Error, ExecutionException {
+	throws OMEROException, ImarisError {
 		int imarisID = imarisIDs.get(imarisIndex);
 
 		IServerPrx imarisServer = imarisLib.GetServer();
 
 		IApplicationPrx vApplication = checkedCast(imarisServer.GetObject(imarisID));
 
-		createImarisDataset(client, getUserImage(imageIndex), vApplication);
+		try {
+			createImarisDataset(client, getUserImage(imageIndex), vApplication);
+		} catch (AccessException | ExecutionException e) {
+			throw new OMEROException(e.getMessage(), e);
+		} catch (Error e) {
+			throw new ImarisError(e.getMessage(), e);
+		}
 	}
 
 
@@ -116,20 +122,24 @@ public class OMEROXTService extends OMEROClient {
 	 * @param imageIndex  The index of the image to load.
 	 * @param imarisIndex The Imaris instance ID index.
 	 *
-	 * @throws AccessException    Cannot access data.
-	 * @throws ServiceException   Cannot connect to OMERO.
-	 * @throws Error              Imaris error.
-	 * @throws ExecutionException A Facility can't be retrieved or instantiated.
+	 * @throws OMEROException Cannot connect to OMERO or access data.
+	 * @throws ImarisError    Imaris error.
 	 */
 	public void loadROIs(int imageIndex, int imarisIndex)
-	throws AccessException, ServiceException, Error, ExecutionException {
+	throws OMEROException, ImarisError {
 		int imarisID = imarisIDs.get(imarisIndex);
 
 		IServerPrx vServer = imarisLib.GetServer();
 
 		IApplicationPrx vApplication = checkedCast(vServer.GetObject(imarisID));
 
-		Image2Imaris.loadROIs(client, getUserImage(imageIndex), vApplication);
+		try {
+			Image2Imaris.loadROIs(client, getUserImage(imageIndex), vApplication);
+		} catch (ServiceException | AccessException | ExecutionException e) {
+			throw new OMEROException(e.getMessage(), e);
+		} catch (Error e) {
+			throw new ImarisError(e.getMessage(), e);
+		}
 	}
 
 }
