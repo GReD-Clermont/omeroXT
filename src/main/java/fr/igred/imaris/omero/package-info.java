@@ -15,7 +15,8 @@
  * Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 /**
- * This package contains classes and interfaces for building graphical user interfaces (GUIs) to interact with the
- * Imaris software.
+ * This package contains classes and interfaces for integrating Imaris with OMERO. It provides functionalities to
+ * facilitate data exchange and interoperability between the two platforms, enabling users to leverage the strengths of
+ * both imaging software solutions in their workflows.
  */
-package fr.igred.imaris.gui;
+package fr.igred.imaris.omero;

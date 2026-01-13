@@ -18,16 +18,14 @@
 package fr.igred.imaris.gui;
 
 import Imaris.Error;
-import com.bitplane.xt.BPImarisLib;
-import fr.igred.omero.Client;
+import fr.igred.imaris.omero.OMEROConnector;
+import fr.igred.imaris.omero.OMEROXTService;
 import fr.igred.omero.GenericObjectWrapper;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.ServiceException;
 import fr.igred.omero.meta.ExperimenterWrapper;
 import fr.igred.omero.meta.GroupWrapper;
 import fr.igred.omero.repository.DatasetWrapper;
-import fr.igred.omero.repository.GenericRepositoryObjectWrapper;
-import fr.igred.omero.repository.Image2Imaris;
 import fr.igred.omero.repository.ImageWrapper;
 import fr.igred.omero.repository.ProjectWrapper;
 
@@ -49,27 +47,22 @@ import java.awt.event.ItemEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
-import static Imaris.IApplicationPrxHelper.checkedCast;
-import static fr.igred.omero.repository.Image2Imaris.createImarisDataset;
 import static java.awt.Font.MONOSPACED;
 import static java.awt.Font.PLAIN;
 import static javax.swing.JOptionPane.showMessageDialog;
 
 
 /**
- * Main window for the OMERO batch plugin.
+ * Main window for the OMERO XT application.
  */
-public class OMEROXT extends JFrame implements Runnable {
+public class OMEROXTGui extends JFrame implements Runnable {
 
 	/** Logger **/
 	private static final Logger LOGGER = Logger.getLogger(MethodHandles.lookup().lookupClass().getName());
@@ -80,12 +73,10 @@ public class OMEROXT extends JFrame implements Runnable {
 	/** Font for lists **/
 	private static final Font LIST_FONT = new Font(MONOSPACED, PLAIN, 12);
 
-	/** Connection status label **/
-	private final JLabel  connectionStatus = new JLabel("Disconnected");
 	/** Connect button **/
-	private final JButton connect          = new JButton("Connect");
+	private final JButton connect    = new JButton("Connect");
 	/** Disconnect button **/
-	private final JButton disconnect       = new JButton("Disconnect");
+	private final JButton disconnect = new JButton("Disconnect");
 
 	/** Imaris instances list **/
 	private final JComboBox<Integer> imarisList = new JComboBox<>();
@@ -102,38 +93,14 @@ public class OMEROXT extends JFrame implements Runnable {
 	/** Images list **/
 	private final JComboBox<String> imageListIn   = new JComboBox<>();
 
-	/** Imaris library **/
-	private final transient BPImarisLib imarisLib = new BPImarisLib();
-
-	/** OMERO client **/
-	private final Client client = new Client();
-
-	/** Groups available to the user **/
-	private List<GroupWrapper> groups = new ArrayList<>(0);
-
-	/** Projects available in the selected group **/
-	private List<ProjectWrapper> groupProjects = new ArrayList<>(0);
-
-	/** User projects **/
-	private List<ProjectWrapper> userProjects = new ArrayList<>(0);
-
-	/** User datasets **/
-	private List<DatasetWrapper> userDatasets = new ArrayList<>(0);
-
-	/** User images **/
-	private List<ImageWrapper> userImages = new ArrayList<>(0);
-
-	/** Users available in the selected group **/
-	private List<ExperimenterWrapper> users = new ArrayList<>(0);
-
-	/** Current experimenter **/
-	private ExperimenterWrapper exp = client.getUser();
+	/** Underlying OMEROXTService handler **/
+	private final OMEROXTService omeroxt = new OMEROXTService();
 
 
 	/**
 	 * Creates a new window.
 	 */
-	public OMEROXT() {
+	public OMEROXTGui() {
 		super("OMERO XT");
 		super.setDefaultCloseOperation(EXIT_ON_CLOSE);
 
@@ -194,7 +161,7 @@ public class OMEROXT extends JFrame implements Runnable {
 	 *
 	 * @param aImarisID The Imaris ID to select.
 	 */
-	public OMEROXT(int aImarisID) {
+	public OMEROXTGui(int aImarisID) {
 		this();
 		this.imarisList.setSelectedItem(aImarisID);
 	}
@@ -266,23 +233,6 @@ public class OMEROXT extends JFrame implements Runnable {
 
 
 	/**
-	 * Main entry point.
-	 *
-	 * @param args Command line arguments.
-	 */
-	public static void main(String[] args) {
-		if (args != null && args.length > 0) {
-			int      imarisID = Integer.parseInt(args[0]);
-			Runnable omeroxt  = new OMEROXT(imarisID);
-			omeroxt.run();
-		} else {
-			Runnable omeroxt = new OMEROXT();
-			omeroxt.run();
-		}
-	}
-
-
-	/**
 	 * Creates the Imaris panel.
 	 *
 	 * @return The Imaris panel.
@@ -308,8 +258,9 @@ public class OMEROXT extends JFrame implements Runnable {
 	 * @return The connection panel.
 	 */
 	private JPanel createConnectionPanel() {
-		JPanel connection      = new JPanel();
-		JLabel labelConnection = new JLabel("Status: ");
+		JPanel connection       = new JPanel();
+		JLabel labelConnection  = new JLabel("Status: ");
+		JLabel connectionStatus = new JLabel("Disconnected");
 		labelConnection.setLabelFor(connectionStatus);
 		connectionStatus.setForeground(Color.RED);
 		connection.add(labelConnection);
@@ -318,8 +269,8 @@ public class OMEROXT extends JFrame implements Runnable {
 		connection.add(connect);
 		connection.add(disconnect);
 		disconnect.setVisible(false);
-		connect.addActionListener(e -> connect());
-		disconnect.addActionListener(e -> disconnect());
+		connect.addActionListener(e -> connect(connectionStatus));
+		disconnect.addActionListener(e -> disconnect(connectionStatus));
 		connection.setBorder(BorderFactory.createTitledBorder("Connection"));
 		return connection;
 	}
@@ -431,34 +382,12 @@ public class OMEROXT extends JFrame implements Runnable {
 	 * Refreshes the list of Imaris instances.
 	 */
 	private void refreshImaris() {
-		ImarisServer.IServerPrx vServer = imarisLib.GetServer();
-
-		int nImaris = 0;
-		if (vServer != null) {
-			nImaris = vServer.GetNumberOfObjects();
-		}
+		omeroxt.refreshImaris();
 		imarisList.removeAllItems();
-		for (int i = 0; i < nImaris; i++) {
-			imarisList.addItem(vServer.GetObjectID(i));
+		for (Integer id : omeroxt.getImarisIDs()) {
+			imarisList.addItem(id);
 		}
 		this.repack();
-	}
-
-
-	/**
-	 * Retrieves user projects and datasets.
-	 *
-	 * @param username The OMERO user.
-	 * @param userId   The user ID.
-	 */
-	public void userProjectsAndDatasets(String username, long userId) {
-		if ("All members".equals(username)) {
-			userProjects = groupProjects;
-		} else {
-			userProjects = groupProjects.stream()
-			                            .filter(project -> project.getOwner().getId() == userId)
-			                            .collect(Collectors.toList());
-		}
 	}
 
 
@@ -472,21 +401,21 @@ public class OMEROXT extends JFrame implements Runnable {
 			Object source = e.getSource();
 			if (source instanceof JComboBox<?>) {
 				int            index   = ((JComboBox<?>) source).getSelectedIndex();
-				DatasetWrapper dataset = this.userDatasets.get(index);
+				DatasetWrapper dataset = omeroxt.getUserDataset(index);
 				try {
-					this.userImages = dataset.getImages(client);
+					omeroxt.loadUserImages(dataset);
 				} catch (AccessException | ServiceException | ExecutionException ex) {
 					LOGGER.warning(ex.getMessage());
 				}
-				this.userImages.sort(Comparator.comparing(GenericRepositoryObjectWrapper::getName,
-				                                          String.CASE_INSENSITIVE_ORDER));
+				List<ImageWrapper> userImages = omeroxt.getUserImages();
+
 				imageListIn.removeAllItems();
 				int padName = getListPadding(userImages, i -> i.getName().length());
 				int padId   = getListPadding(userImages, i -> (int) (StrictMath.log10(i.getId()))) + 1;
-				for (ImageWrapper i : this.userImages) {
+				for (ImageWrapper i : userImages) {
 					imageListIn.addItem(format(i.getName(), i.getId(), padName, padId));
 				}
-				if (!this.userImages.isEmpty()) {
+				if (!userImages.isEmpty()) {
 					imageListIn.setSelectedIndex(0);
 				}
 			}
@@ -504,18 +433,22 @@ public class OMEROXT extends JFrame implements Runnable {
 		if (e.getStateChange() == ItemEvent.SELECTED) {
 			Object source = e.getSource();
 			if (source instanceof JComboBox<?>) {
-				int            index   = ((JComboBox<?>) source).getSelectedIndex();
-				ProjectWrapper project = userProjects.get(index);
-				this.userDatasets = project.getDatasets();
-				this.userDatasets.sort(Comparator.comparing(DatasetWrapper::getName,
-				                                            String.CASE_INSENSITIVE_ORDER));
+				int index = ((JComboBox<?>) source).getSelectedIndex();
+
+				ProjectWrapper project = omeroxt.getUserProject(index);
+				try {
+					omeroxt.loadUserDatasets(project);
+				} catch (AccessException | ServiceException | ExecutionException ex) {
+					LOGGER.warning(ex.getMessage());
+				}
+				List<DatasetWrapper> userDatasets = omeroxt.getUserDatasets();
 				datasetListIn.removeAllItems();
 				int padName = getListPadding(userDatasets, d -> d.getName().length());
 				int padId   = getListPadding(userDatasets, g -> (int) (StrictMath.log10(g.getId()))) + 1;
-				for (DatasetWrapper d : this.userDatasets) {
+				for (DatasetWrapper d : userDatasets) {
 					datasetListIn.addItem(format(d.getName(), d.getId(), padName, padId));
 				}
-				if (!this.userDatasets.isEmpty()) {
+				if (!userDatasets.isEmpty()) {
 					datasetListIn.setSelectedIndex(0);
 				}
 			}
@@ -530,13 +463,15 @@ public class OMEROXT extends JFrame implements Runnable {
 	 */
 	private void updateUser(ItemEvent e) {
 		if (e.getStateChange() == ItemEvent.SELECTED) {
-			int    index    = userList.getSelectedIndex();
-			String username = userList.getItemAt(index);
-			long   userId   = -1;
-			if (index >= 1) {
-				userId = users.get(index - 1).getId();
-			}
-			userProjectsAndDatasets(username, userId);
+			int index = userList.getSelectedIndex();
+
+			List<ExperimenterWrapper> users = omeroxt.getUsers();
+
+			ExperimenterWrapper user = index >= 1 ? users.get(index - 1) : null;
+			omeroxt.loadUserProjects(user);
+
+			List<ProjectWrapper> userProjects = omeroxt.getUserProjects();
+
 			projectListIn.removeAllItems();
 			datasetListIn.removeAllItems();
 			int padName = getListPadding(userProjects, p -> p.getName().length());
@@ -558,35 +493,25 @@ public class OMEROXT extends JFrame implements Runnable {
 	 */
 	private void updateGroup(ItemEvent e) {
 		if (e.getStateChange() == ItemEvent.SELECTED) {
-			int    index     = groupList.getSelectedIndex();
-			long   id        = groups.get(index).getId();
-			String groupName = groups.get(index).getName();
-			client.switchGroup(id);
+			int index = groupList.getSelectedIndex();
 
-			groupProjects = new ArrayList<>(0);
 			try {
-				groupProjects = client.getProjects();
+				omeroxt.switchGroup(omeroxt.getGroups().get(index));
 			} catch (ServiceException | ExecutionException | AccessException exception) {
 				LOGGER.warning(exception.getMessage());
 			}
-			groupProjects.sort(Comparator.comparing(ProjectWrapper::getName,
-			                                        String.CASE_INSENSITIVE_ORDER));
-			try {
-				GroupWrapper group = client.getGroup(groupName);
-				users = group.getExperimenters();
-			} catch (ExecutionException | ServiceException | AccessException exception) {
-				LOGGER.warning(exception.getMessage());
-			}
-			users.sort(Comparator.comparing(ExperimenterWrapper::getUserName));
 			userList.removeAllItems();
 
 			userList.addItem("All members");
-			int padName  = getListPadding(users, u -> u.getUserName().length());
-			int padId    = getListPadding(users, g -> (int) (StrictMath.log10(g.getId()))) + 1;
+			List<ExperimenterWrapper> users = omeroxt.getUsers();
+
+			int padName = getListPadding(users, u -> u.getUserName().length());
+			int padId   = getListPadding(users, g -> (int) (StrictMath.log10(g.getId()))) + 1;
+
 			int selected = 0;
 			for (ExperimenterWrapper user : users) {
 				userList.addItem(format(user.getUserName(), user.getId(), padName, padId));
-				if (user.getId() == exp.getId()) {
+				if (user.getId() == omeroxt.getUser().getId()) {
 					selected = users.indexOf(user) + 1;
 				}
 			}
@@ -596,60 +521,48 @@ public class OMEROXT extends JFrame implements Runnable {
 
 
 	/**
-	 * Displays a connection dialog to connect to OMERO.
-	 *
-	 * @return True if the connection was successful.
+	 * Displays a connection dialogue to connect to OMERO.
 	 */
-	private boolean connect() {
-		Color   green     = new Color(0, 153, 0);
-		boolean connected = false;
+	private void connect(JLabel connectionStatus) {
+		Color green = new Color(0, 153, 0);
 
-		OMEROConnectDialog connectDialog = new OMEROConnectDialog();
-		connectDialog.connect(client);
-		if (!connectDialog.wasCancelled()) {
-			long groupId = client.getCurrentGroupId();
-
-			try {
-				exp = client.getUser(client.getUser().getUserName());
-			} catch (ExecutionException | ServiceException | AccessException e) {
-				LOGGER.warning(e.getCause().getMessage());
-			} catch (NoSuchElementException e) {
-				LOGGER.warning(e.getCause().getMessage());
-				return false;
-			}
-			groups = exp.getGroups();
-			groups.removeIf(g -> g.getId() <= 2);
-
-			int padName = getListPadding(groups, g -> g.getName().length());
-			int padId   = getListPadding(groups, g -> (int) (StrictMath.log10(g.getId()))) + 1;
-			for (GroupWrapper group : groups) {
-				groupList.addItem(format(group.getName(), group.getId(), padName, padId));
-			}
-
-			connectionStatus.setText("Connected");
-			connectionStatus.setForeground(green);
-			connect.setVisible(false);
-			disconnect.setVisible(true);
-
-			int index = -1;
-			for (int i = 0; index < 0 && i < groups.size(); i++) {
-				if (groups.get(i).getId() == groupId) {
-					index = i;
-				}
-			}
-			groupList.setSelectedIndex(-1);
-			groupList.setSelectedIndex(index);
-			connected = true;
+		OMEROConnector connectDialog = new OMEROConnectDialog();
+		try {
+			omeroxt.connect(connectDialog);
+		} catch (ExecutionException | ServiceException | AccessException | NoSuchElementException e) {
+			LOGGER.warning(e.getCause().getMessage());
 		}
-		return connected;
+		long currentGroupId = omeroxt.getCurrentGroupId();
+
+		List<GroupWrapper> groups = omeroxt.getGroups();
+
+		int padName = getListPadding(groups, g -> g.getName().length());
+		int padId   = getListPadding(groups, g -> (int) (StrictMath.log10(g.getId()))) + 1;
+		for (GroupWrapper group : groups) {
+			groupList.addItem(format(group.getName(), group.getId(), padName, padId));
+		}
+
+		connectionStatus.setText("Connected");
+		connectionStatus.setForeground(green);
+		connect.setVisible(false);
+		disconnect.setVisible(true);
+
+		int index = -1;
+		for (int i = 0; index < 0 && i < groups.size(); i++) {
+			if (groups.get(i).getId() == currentGroupId) {
+				index = i;
+			}
+		}
+		groupList.setSelectedIndex(-1);
+		groupList.setSelectedIndex(index);
 	}
 
 
 	/**
 	 * Disconnects from OMERO.
 	 */
-	private void disconnect() {
-		client.disconnect();
+	private void disconnect(JLabel connectionStatus) {
+		omeroxt.disconnect();
 		connectionStatus.setText("Disconnected");
 		connectionStatus.setForeground(Color.RED);
 		connect.setVisible(true);
@@ -663,18 +576,49 @@ public class OMEROXT extends JFrame implements Runnable {
 
 
 	/**
+	 * Cleans up resources.
+	 */
+	private void cleanUp() {
+		omeroxt.cleanUp();
+	}
+
+
+	/**
+	 * Releases all of the native screen resources used by this {@code Window}, its subcomponents, and all of its owned
+	 * children. That is, the resources for these {@code Component}s will be destroyed, any memory they consume will be
+	 * returned to the OS, and they will be marked as undisplayable.
+	 * <p>
+	 * The {@code Window} and its subcomponents can be made displayable again by rebuilding the native resources with a
+	 * subsequent call to {@code pack} or {@code show}. The states of the recreated {@code Window} and its subcomponents
+	 * will be identical to the states of these objects at the point where the {@code Window} was disposed (not
+	 * accounting for additional modifications between those actions).
+	 * <p>
+	 * <b>Note</b>: When the last displayable window
+	 * within the Java virtual machine (VM) is disposed of, the VM may terminate.  See <a
+	 * href="doc-files/AWTThreadIssues.html#Autoshutdown"> AWT Threading Issues</a> for more information.
+	 *
+	 * @see Component#isDisplayable
+	 * @see #pack
+	 * @see #show
+	 */
+	@Override
+	public void dispose() {
+		cleanUp();
+		super.dispose();
+	}
+
+
+	/**
 	 * Loads the selected image into Imaris.
 	 */
 	private void loadImage() {
 		int index = imageListIn.getSelectedIndex();
 		if (index >= 0) {
-			ImageWrapper            image    = userImages.get(index);
-			int                     imarisID = imarisList.getItemAt(imarisList.getSelectedIndex());
-			ImarisServer.IServerPrx vServer  = imarisLib.GetServer();
+			ImageWrapper image    = omeroxt.getUserImage(index);
+			int          imarisID = imarisList.getItemAt(imarisList.getSelectedIndex());
 
-			Imaris.IApplicationPrx vImarisApplication = checkedCast(vServer.GetObject(imarisID));
 			try {
-				createImarisDataset(client, image, vImarisApplication);
+				omeroxt.loadImage(image, imarisID);
 			} catch (AccessException | ExecutionException | Error e) {
 				LOGGER.warning(e.getMessage());
 			}
@@ -688,13 +632,11 @@ public class OMEROXT extends JFrame implements Runnable {
 	private void loadROIs() {
 		int index = imageListIn.getSelectedIndex();
 		if (index >= 0) {
-			ImageWrapper            image    = userImages.get(index);
-			int                     imarisID = imarisList.getItemAt(imarisList.getSelectedIndex());
-			ImarisServer.IServerPrx vServer  = imarisLib.GetServer();
+			ImageWrapper image    = omeroxt.getUserImage(index);
+			int          imarisID = imarisList.getItemAt(imarisList.getSelectedIndex());
 
-			Imaris.IApplicationPrx vImarisApplication = checkedCast(vServer.GetObject(imarisID));
 			try {
-				Image2Imaris.loadROIs(client, image, vImarisApplication);
+				omeroxt.loadROIs(image, imarisID);
 			} catch (AccessException | ServiceException | ExecutionException | Error e) {
 				LOGGER.warning(e.getMessage());
 			}
@@ -726,7 +668,7 @@ public class OMEROXT extends JFrame implements Runnable {
 
 
 	/**
-	 * Window adapter to disconnect the client when closing the window.
+	 * Window adapter to clean up and dispose of the current object when closing.
 	 */
 	private class ClientDisconnector extends WindowAdapter {
 
@@ -740,12 +682,9 @@ public class OMEROXT extends JFrame implements Runnable {
 		 *
 		 * @param e the event to be processed
 		 */
-		@SuppressWarnings("SyntheticAccessorCall")
 		@Override
 		public void windowClosing(WindowEvent e) {
-			super.windowClosing(e);
-			imarisLib.Disconnect();
-			client.disconnect();
+			dispose();
 		}
 
 	}

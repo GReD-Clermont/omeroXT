@@ -15,7 +15,6 @@
  * Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 /**
- * This package contains classes and interfaces for building graphical user interfaces (GUIs) to interact with the
- * Imaris software.
+ * This package contains classes and interfaces for Imaris XTensions.
  */
-package fr.igred.imaris.gui;
+package fr.igred.imaris;

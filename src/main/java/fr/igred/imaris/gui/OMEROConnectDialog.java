@@ -17,6 +17,7 @@
 
 package fr.igred.imaris.gui;
 
+import fr.igred.imaris.omero.OMEROConnector;
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.ServiceException;
 
@@ -41,9 +42,9 @@ import static javax.swing.JOptionPane.showMessageDialog;
 
 
 /**
- * Connection dialog for OMERO.
+ * Connection dialogue for OMERO.
  */
-public class OMEROConnectDialog extends JDialog implements ActionListener {
+public class OMEROConnectDialog extends JDialog implements ActionListener, OMEROConnector {
 
 	/** Host field. */
 	private final JTextField          hostField     = new JTextField("");
@@ -60,12 +61,10 @@ public class OMEROConnectDialog extends JDialog implements ActionListener {
 
 	/** The client to connect. */
 	private Client  client    = new Client();
-	/** True if the dialog was cancelled. */
-	private boolean cancelled = false;
 
 
 	/**
-	 * Creates a new dialog to connect the specified client, but does not display it.
+	 * Creates a new dialogue to connect the specified client, but does not display it.
 	 */
 	public OMEROConnectDialog() {
 		final int width  = 350;
@@ -131,6 +130,7 @@ public class OMEROConnectDialog extends JDialog implements ActionListener {
 	 *
 	 * @param c The client.
 	 */
+	@Override
 	public void connect(Client c) {
 		this.client = c;
 		login.addActionListener(this);
@@ -148,7 +148,6 @@ public class OMEROConnectDialog extends JDialog implements ActionListener {
 	public void actionPerformed(ActionEvent e) {
 		Object source = e.getSource();
 		if (source == login) {
-			cancelled = false;
 			String host     = this.hostField.getText();
 			int    port     = (Integer) this.portField.getValue();
 			String username = this.userField.getText();
@@ -174,19 +173,8 @@ public class OMEROConnectDialog extends JDialog implements ActionListener {
 				showMessageDialog(null, message, "Error", JOptionPane.ERROR_MESSAGE);
 			}
 		} else if (source == cancel) {
-			cancelled = true;
 			dispose();
 		}
-	}
-
-
-	/**
-	 * Specifies if cancel button was chosen.
-	 *
-	 * @return True if cancel was pressed.
-	 */
-	public boolean wasCancelled() {
-		return cancelled;
 	}
 
 }

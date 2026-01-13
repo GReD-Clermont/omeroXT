@@ -14,8 +14,23 @@
  * this program; if not, write to the Free Software Foundation, Inc., 51 Franklin
  * Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
+
+package fr.igred.imaris.omero;
+
+import fr.igred.omero.Client;
+
+
 /**
- * This package contains classes and interfaces for building graphical user interfaces (GUIs) to interact with the
- * Imaris software.
+ * Interface used for OMERO connection delegation.
  */
-package fr.igred.imaris.gui;
+@FunctionalInterface
+public interface OMEROConnector {
+
+	/**
+	 * Connects to OMERO using the provided client.
+	 *
+	 * @param c The client to use for connection.
+	 */
+	void connect(Client c);
+
+}
