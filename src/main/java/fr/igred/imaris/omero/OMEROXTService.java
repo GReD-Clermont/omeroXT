@@ -22,10 +22,10 @@ import Imaris.IApplicationPrx;
 import ImarisServer.IServerPrx;
 import com.bitplane.xt.BPImarisLib;
 import fr.igred.omero.IntegratedClient;
-import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.OMEROException;
+import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.ServiceException;
-import fr.igred.omero.repository.Image2Imaris;
+import fr.igred.omero.repository.ROI2Imaris;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -95,8 +95,8 @@ public class OMEROXTService extends IntegratedClient {
 	 * @param imageIndex  The index of the image to load.
 	 * @param imarisIndex The Imaris instance ID index.
 	 *
-	 * @throws OMEROException Cannot connect to OMERO or access data.
-	 * @throws OMEROXTException    Imaris error.
+	 * @throws OMEROException   Cannot connect to OMERO or access data.
+	 * @throws OMEROXTException Imaris error.
 	 */
 	public void loadImage(int imageIndex, int imarisIndex)
 	throws OMEROException, OMEROXTException {
@@ -122,8 +122,8 @@ public class OMEROXTService extends IntegratedClient {
 	 * @param imageIndex  The index of the image to load.
 	 * @param imarisIndex The Imaris instance ID index.
 	 *
-	 * @throws OMEROException Cannot connect to OMERO or access data.
-	 * @throws OMEROXTException    Imaris error.
+	 * @throws OMEROException   Cannot connect to OMERO or access data.
+	 * @throws OMEROXTException Imaris error.
 	 */
 	public void loadROIs(int imageIndex, int imarisIndex)
 	throws OMEROException, OMEROXTException {
@@ -134,7 +134,7 @@ public class OMEROXTService extends IntegratedClient {
 		IApplicationPrx vApplication = checkedCast(vServer.GetObject(imarisID));
 
 		try {
-			Image2Imaris.loadROIs(client, getUserImage(imageIndex), vApplication);
+			ROI2Imaris.loadROIs(client, getUserImage(imageIndex), vApplication);
 		} catch (ServiceException | AccessException | ExecutionException e) {
 			throw new OMEROException(e.getMessage(), e);
 		} catch (Error e) {

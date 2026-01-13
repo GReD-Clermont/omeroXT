@@ -21,23 +21,15 @@ import Imaris.Error;
 import Imaris.IApplicationPrx;
 import Imaris.IBaseImagePrx;
 import Imaris.IDataSetPrx;
-import Imaris.ILabelImagePrx;
-import Imaris.ISurfacesPrx;
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.ServiceException;
-import fr.igred.omero.roi.GenericShapeWrapper;
-import fr.igred.omero.roi.ROIWrapper;
-import fr.igred.omero.roi.ShapeList;
 import ome.model.units.Time;
 import omero.model._TimeOperationsNC;
 
 import java.awt.Color;
-import java.awt.Shape;
-import java.awt.geom.Rectangle2D;
 import java.lang.invoke.MethodHandles;
 import java.sql.Timestamp;
-import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.logging.Logger;
 
@@ -256,7 +248,7 @@ public final class Image2Imaris {
 	 * @param image       The OMERO image.
 	 * @param imarisImage The Imaris image.
 	 */
-	private static void setSpacing(Client client, ImageWrapper image, IBaseImagePrx imarisImage) {
+	public static void setSpacing(Client client, ImageWrapper image, IBaseImagePrx imarisImage) {
 		PixelsWrapper pixels = image.getPixels();
 
 		int sizeX = pixels.getSizeX();
@@ -373,86 +365,6 @@ public final class Image2Imaris {
 				LOGGER.warning(e.getMessage() + ": " + e.mDescription);
 			}
 		}
-	}
-
-
-	/**
-	 * Loads the ROIs of the image into an Imaris Surfaces object.
-	 *
-	 * @param client The OMERO client.
-	 * @param image  The OMERO image.
-	 * @param app    The Imaris application proxy.
-	 *
-	 * @return The Imaris Surfaces corresponding to the ROIs.
-	 *
-	 * @throws AccessException    If there is an access error.
-	 * @throws ServiceException   If there is a service error.
-	 * @throws ExecutionException If there is an execution error.
-	 * @throws Error              If there is an Imaris error.
-	 */
-	public static ISurfacesPrx loadROIs(Client client, ImageWrapper image, IApplicationPrx app)
-	throws AccessException, ServiceException, ExecutionException, Error {
-		int sizeX = image.getPixels().getSizeX();
-		int sizeY = image.getPixels().getSizeY();
-		int sizeZ = image.getPixels().getSizeZ();
-		int sizeT = image.getPixels().getSizeT();
-
-		List<ROIWrapper> rois = image.getROIs(client);
-
-		ILabelImagePrx labelImage = app.GetFactory().CreateLabelImage();
-		labelImage.Create(sizeX, sizeY, sizeZ, sizeT);
-		setSpacing(client, image, labelImage);
-
-		setSpacing(client, image, labelImage);
-
-		for (int index = 0; index < rois.size(); index++) {
-			ROIWrapper roi    = rois.get(index);
-			ShapeList  shapes = roi.getShapes();
-			for (GenericShapeWrapper<?> shape : shapes) {
-				int zpos = shape.getZ();
-				int tpos = shape.getT();
-
-				int zmin = Math.max(zpos, 0);
-				int zmax = zpos >= 0 ? zpos : sizeZ - 1;
-
-				int tmin = Math.max(tpos, 0);
-				int tmax = tpos >= 0 ? tpos : sizeT - 1;
-
-				Shape awtShape = shape.createTransformedAWTShape();
-
-				Rectangle2D bounds = awtShape.getBounds2D();
-
-				int bx = (int) bounds.getX();
-				int by = (int) bounds.getY();
-				int bw = (int) bounds.getWidth();
-				int bh = (int) bounds.getHeight();
-
-				int x = bx < 0 ? 0 : bx >= sizeX ? sizeX - 1 : bx;
-				int y = by < 0 ? 0 : by >= sizeY ? sizeY - 1 : by;
-				int w = bw < 0 ? 0 : x + bw >= sizeX ? sizeX - x - 1 : bw;
-				int h = bh < 0 ? 0 : y + bh >= sizeY ? sizeY - y - 1 : bh;
-
-				for(int t=tmin; t<=tmax; t++) {
-					for(int z=zmin; z<=zmax; z++) {
-						int[] labels = labelImage.GetDataSubVolumeAs1DArrayInts(x, y, z, t, w, h, 1);
-
-						for (int j = 0; j < h; j++) {
-							for (int i = 0; i < w; i++) {
-								if (awtShape.contains(i + x, j + y)) {
-									int pos = j * w + i;
-									labels[pos] = index + 1;
-								}
-							}
-						}
-						labelImage.SetDataSubVolumeAs1DArrayInts(labels, x, y, z, t, w, h, 1);
-					}
-				}
-			}
-		}
-
-		ISurfacesPrx surfaces = app.GetImageProcessing().DetectSurfacesFromLabelImage(labelImage);
-		app.GetSurpassScene().AddChild(surfaces, -1);
-		return surfaces;
 	}
 
 
