@@ -49,7 +49,7 @@ import static Imaris.tType.eTypeUInt8;
 /**
  * Utility class for creating Imaris datasets from OMERO images.
  */
-public final class Image2Imaris {
+public final class ROI2Imaris {
 
 	/** Logger for logging messages and errors. */
 	private static final Logger LOGGER = Logger.getLogger(MethodHandles.lookup().lookupClass().getName());
@@ -58,7 +58,7 @@ public final class Image2Imaris {
 	/**
 	 * Private constructor to prevent instantiation.
 	 */
-	private Image2Imaris() {
+	private ROI2Imaris() {
 	}
 
 
@@ -303,7 +303,7 @@ public final class Image2Imaris {
 		setIfNotNull(imarisImage, IBaseImagePrx::SetExtendMinZ, minZ);
 		setIfNotNull(imarisImage, IBaseImagePrx::SetExtendMaxZ, maxZ);
 		setIfNotNull(imarisImage, IBaseImagePrx::SetUnit, unit);
-		setIfNotNull(imarisImage, Image2Imaris::setAcquisitionDate, date);
+		setIfNotNull(imarisImage, ROI2Imaris::setAcquisitionDate, date);
 		// TODO: Fix time
 		setIfNotNull(imarisImage, IBaseImagePrx::SetTimePointsDelta, delta);
 	}

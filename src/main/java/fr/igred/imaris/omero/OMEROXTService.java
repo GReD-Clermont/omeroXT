@@ -25,7 +25,7 @@ import fr.igred.omero.IntegratedClient;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.OMEROException;
 import fr.igred.omero.exception.ServiceException;
-import fr.igred.omero.repository.Image2Imaris;
+import fr.igred.omero.repository.ROI2Imaris;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 import static Imaris.IApplicationPrxHelper.checkedCast;
-import static fr.igred.omero.repository.Image2Imaris.createImarisDataset;
+import static fr.igred.omero.repository.ROI2Imaris.createImarisDataset;
 
 
 /** Service to handle OMERO and Imaris XT interactions **/
@@ -134,7 +134,7 @@ public class OMEROXTService extends IntegratedClient {
 		IApplicationPrx vApplication = checkedCast(vServer.GetObject(imarisID));
 
 		try {
-			Image2Imaris.loadROIs(client, getUserImage(imageIndex), vApplication);
+			ROI2Imaris.loadROIs(client, getUserImage(imageIndex), vApplication);
 		} catch (ServiceException | AccessException | ExecutionException e) {
 			throw new OMEROException(e.getMessage(), e);
 		} catch (Error e) {
