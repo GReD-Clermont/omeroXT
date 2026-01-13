@@ -19,6 +19,7 @@ package fr.igred.imaris.omero;
 
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.AccessException;
+import fr.igred.omero.exception.OMEROServerError;
 import fr.igred.omero.exception.ServiceException;
 import fr.igred.omero.meta.ExperimenterWrapper;
 import fr.igred.omero.meta.GroupWrapper;
@@ -80,6 +81,23 @@ public class OMEROClient {
 	 */
 	public long getCurrentGroupId() {
 		return client.getCurrentGroupId();
+	}
+
+
+	/**
+	 * Returns the group index.
+	 *
+	 * @param groupId The ID of the group to find in the group list.
+	 *
+	 * @return See above.
+	 */
+	public int getGroupIndex(long groupId) {
+		for (int i = 0; i < groups.size(); i++) {
+			if (groups.get(i).getGroupId() == groupId) {
+				return i;
+			}
+		}
+		return -1;
 	}
 
 
@@ -180,6 +198,23 @@ public class OMEROClient {
 
 
 	/**
+	 * Returns the index of the user with the given ID.
+	 *
+	 * @param userId The ID of the user.
+	 *
+	 * @return The index of the user, or -1 if not found.
+	 */
+	public int getUserIndex(long userId) {
+		for (int i = 0; i < users.size(); i++) {
+			if (users.get(i).getId() == userId) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+
+	/**
 	 * Connects to OMERO using the provided connector
 	 *
 	 * @param connector The connector to use
@@ -191,6 +226,7 @@ public class OMEROClient {
 	 */
 	public boolean connect(OMEROConnector connector)
 	throws AccessException, ServiceException, ExecutionException {
+		cleanUp();
 		connector.connect(client);
 		boolean connected = client.isConnected();
 		if (connected) {
@@ -214,20 +250,33 @@ public class OMEROClient {
 	/** Cleans up resources **/
 	public void cleanUp() {
 		disconnect();
+		userImages.clear();
+		userDatasets.clear();
+		userProjects.clear();
+		groupProjects.clear();
+		users.clear();
+		groups.clear();
 	}
 
 
 	/**
 	 * Loads the groups available to the user.
 	 *
-	 * @param group The group to select after loading.
+	 * @param groupIndex The index of the group to select after loading.
 	 *
 	 * @throws AccessException    Cannot access data.
 	 * @throws ServiceException   Cannot connect to OMERO.
 	 * @throws ExecutionException A Facility can't be retrieved or instantiated.
 	 */
-	public void switchGroup(GroupWrapper group)
+	public void switchGroup(int groupIndex)
 	throws AccessException, ServiceException, ExecutionException {
+		users.clear();
+		groupProjects.clear();
+		userProjects.clear();
+		userDatasets.clear();
+		userImages.clear();
+
+		GroupWrapper group = groups.get(groupIndex);
 		client.switchGroup(group.getGroupId());
 		groupProjects = client.getProjects();
 		groupProjects.sort(Comparator.comparing(ProjectWrapper::getName,
@@ -239,54 +288,61 @@ public class OMEROClient {
 
 
 	/**
-	 * Loads the projects owned by the selected user in the selected group.
+	 * Loads the projects owned by the selected user.
 	 *
-	 * @param experimenter The selected user. If null, all projects in the group are loaded.
+	 * @param experimenterIndex The selected user index. If negative, all projects in the group are loaded.
 	 */
-	public void loadUserProjects(ExperimenterWrapper experimenter) {
+	public void loadUserProjects(int experimenterIndex) {
+		userImages.clear();
+		userDatasets.clear();
 		userProjects = new ArrayList<>(groupProjects);
-		if (experimenter != null) {
-			long userId = experimenter.getId();
+		if (experimenterIndex > 0) {
+			long userId = users.get(experimenterIndex).getId();
 			userProjects.removeIf(p -> p.getOwner().getId() != userId);
 		}
 	}
 
 
 	/**
-	 * Loads the datasets owned by the selected user in the selected project.
+	 * Loads the datasets in the selected project. If projectIndex is negative, loads all datasets owned by the user. If
+	 * projectIndex is greater than the number of user projects, loads orphaned datasets.
 	 *
-	 * @param project The selected project.
+	 * @param projectIndex The selected project index.
 	 *
 	 * @throws AccessException    Cannot access data.
 	 * @throws ServiceException   Cannot connect to OMERO.
 	 * @throws ExecutionException A Facility can't be retrieved or instantiated.
 	 */
-	public void loadUserDatasets(ProjectWrapper project)
-	throws AccessException, ServiceException, ExecutionException {
-		if (project != null) {
+	public void loadUserDatasets(int projectIndex)
+	throws AccessException, ServiceException, ExecutionException, OMEROServerError {
+		userImages.clear();
+		if (projectIndex < 0) {
+			userDatasets = client.getDatasets();
+		} else if (projectIndex >= userProjects.size()) {
+			userDatasets = client.getOrphanedDatasets();
+		} else {
+			ProjectWrapper project = getUserProject(projectIndex);
 			project.reload(client);
 			userDatasets = project.getDatasets();
 			userDatasets.sort(Comparator.comparing(DatasetWrapper::getName,
 			                                       String.CASE_INSENSITIVE_ORDER));
-		} else {
-			userDatasets.clear();
 		}
 	}
 
 
 	/**
-	 * Loads the images owned by the selected user in the selected dataset.
+	 * Loads the images owned by the selected user in the given dataset.
 	 *
-	 * @param dataset The selected dataset.
+	 * @param datasetIndex The selected dataset index.
 	 *
 	 * @throws AccessException    Cannot access data.
 	 * @throws ServiceException   Cannot connect to OMERO.
 	 * @throws ExecutionException A Facility can't be retrieved or instantiated.
 	 */
-	public void loadUserImages(DatasetWrapper dataset)
+	public void loadUserImages(int datasetIndex)
 	throws AccessException, ServiceException, ExecutionException {
-		if (dataset != null) {
-			userImages = dataset.getImages(client);
+		if (datasetIndex >= 0 && datasetIndex < userDatasets.size()) {
+			userImages = getUserDataset(datasetIndex).getImages(client);
 			userImages.sort(Comparator.comparing(ImageWrapper::getName,
 			                                     String.CASE_INSENSITIVE_ORDER));
 		} else {

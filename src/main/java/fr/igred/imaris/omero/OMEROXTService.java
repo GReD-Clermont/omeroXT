@@ -89,42 +89,47 @@ public class OMEROXTService extends OMEROClient {
 
 
 	/**
-	 * Loads the selected image into Imaris.
+	 * Loads the selected image into the specified Imaris instance.
 	 *
-	 * @param image    The image to load.
-	 * @param imarisID The Imaris instance ID.
+	 * @param imageIndex  The index of the image to load.
+	 * @param imarisIndex The Imaris instance ID index.
 	 *
 	 * @throws AccessException    Cannot access data.
 	 * @throws Error              Imaris error.
 	 * @throws ExecutionException A Facility can't be retrieved or instantiated.
 	 */
-	public void loadImage(ImageWrapper image, int imarisID)
+	public void loadImage(int imageIndex, int imarisIndex)
 	throws AccessException, Error, ExecutionException {
-		IServerPrx vServer = imarisLib.GetServer();
+		int imarisID = imarisIDs.get(imarisIndex);
 
-		IApplicationPrx vImarisApplication = checkedCast(vServer.GetObject(imarisID));
+		IServerPrx imarisServer = imarisLib.GetServer();
 
-		createImarisDataset(client, image, vImarisApplication);
+		IApplicationPrx vApplication = checkedCast(imarisServer.GetObject(imarisID));
+
+		createImarisDataset(client, getUserImage(imageIndex), vApplication);
 	}
 
 
 	/**
-	 * Loads the ROIs of the selected image into Imaris, as Surfaces.
+	 * Loads the ROIs of the selected image into the specified Imaris instance.
 	 *
-	 * @param image    The image to load.
-	 * @param imarisID The Imaris instance ID.
+	 * @param imageIndex  The index of the image to load.
+	 * @param imarisIndex The Imaris instance ID index.
 	 *
 	 * @throws AccessException    Cannot access data.
 	 * @throws ServiceException   Cannot connect to OMERO.
 	 * @throws Error              Imaris error.
 	 * @throws ExecutionException A Facility can't be retrieved or instantiated.
 	 */
-	public void loadROIs(ImageWrapper image, int imarisID)
+	public void loadROIs(int imageIndex, int imarisIndex)
 	throws AccessException, ServiceException, Error, ExecutionException {
+		int imarisID = imarisIDs.get(imarisIndex);
+
 		IServerPrx vServer = imarisLib.GetServer();
 
-		IApplicationPrx vImarisApplication = checkedCast(vServer.GetObject(imarisID));
-		Image2Imaris.loadROIs(client, image, vImarisApplication);
+		IApplicationPrx vApplication = checkedCast(vServer.GetObject(imarisID));
+
+		Image2Imaris.loadROIs(client, getUserImage(imageIndex), vApplication);
 	}
 
 }
