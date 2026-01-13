@@ -158,7 +158,7 @@
 				<configuration>
 					<archive>
 						<manifest>
-							<mainClass>fr.igred.imaris.OMEROXTension</mainClass>
+							<mainClass>fr.igred.imaris.xtension.OMEROXTension</mainClass>
 						</manifest>
 					</archive>
 					<descriptorRefs>

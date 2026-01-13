@@ -17,7 +17,7 @@
 
 package fr.igred.imaris.gui;
 
-import fr.igred.imaris.omero.OMEROConnector;
+import fr.igred.omero.Connector;
 import fr.igred.omero.Client;
 import fr.igred.omero.exception.ServiceException;
 
@@ -44,7 +44,7 @@ import static javax.swing.JOptionPane.showMessageDialog;
 /**
  * Connection dialogue for OMERO.
  */
-public class OMEROConnectDialog extends JDialog implements ActionListener, OMEROConnector {
+public class OMEROConnectDialog extends JDialog implements ActionListener, Connector {
 
 	/** Host field. */
 	private final JTextField          hostField     = new JTextField("");

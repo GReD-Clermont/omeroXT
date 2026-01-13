@@ -17,4 +17,4 @@
 /**
  * This package contains classes and interfaces for Imaris XTensions.
  */
-package fr.igred.imaris;
+package fr.igred.imaris.xtension;

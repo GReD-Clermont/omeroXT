@@ -15,16 +15,14 @@
  * Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-package fr.igred.imaris.omero;
-
-import fr.igred.omero.Client;
+package fr.igred.omero;
 
 
 /**
  * Interface used for OMERO connection delegation.
  */
 @FunctionalInterface
-public interface OMEROConnector {
+public interface Connector {
 
 	/**
 	 * Connects to OMERO using the provided client.

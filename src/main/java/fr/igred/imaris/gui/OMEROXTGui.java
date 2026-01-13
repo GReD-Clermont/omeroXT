@@ -17,10 +17,10 @@
 
 package fr.igred.imaris.gui;
 
-import fr.igred.imaris.exception.ImarisError;
-import fr.igred.imaris.exception.OMEROException;
-import fr.igred.imaris.omero.OMEROConnector;
+import fr.igred.imaris.omero.OMEROXTException;
 import fr.igred.imaris.omero.OMEROXTService;
+import fr.igred.omero.Connector;
+import fr.igred.omero.OMEROException;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -474,7 +474,7 @@ public class OMEROXTGui extends JFrame implements Runnable {
 	private void connect(JLabel connectionStatus) {
 		Color green = new Color(0, 153, 0);
 
-		OMEROConnector connectDialog = new OMEROConnectDialog();
+		Connector connectDialog = new OMEROConnectDialog();
 		try {
 			omeroxt.connect(connectDialog);
 		} catch (OMEROException ex) {
@@ -552,7 +552,7 @@ public class OMEROXTGui extends JFrame implements Runnable {
 		if (imageIndex >= 0 && imarisIdx >= 0) {
 			try {
 				omeroxt.loadImage(imageIndex, imarisIdx);
-			} catch (OMEROException | ImarisError e) {
+			} catch (OMEROException | OMEROXTException e) {
 				errorWindow(e.getMessage());
 			}
 		} else {
@@ -571,7 +571,7 @@ public class OMEROXTGui extends JFrame implements Runnable {
 		if (imageIndex >= 0 && imarisIdx >= 0) {
 			try {
 				omeroxt.loadROIs(imageIndex, imarisIdx);
-			} catch (OMEROException | ImarisError e) {
+			} catch (OMEROException | OMEROXTException e) {
 				errorWindow(e.getMessage());
 			}
 		} else {

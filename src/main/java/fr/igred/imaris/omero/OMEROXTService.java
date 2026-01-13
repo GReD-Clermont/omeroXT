@@ -21,9 +21,9 @@ import Imaris.Error;
 import Imaris.IApplicationPrx;
 import ImarisServer.IServerPrx;
 import com.bitplane.xt.BPImarisLib;
-import fr.igred.imaris.exception.ImarisError;
-import fr.igred.imaris.exception.OMEROException;
+import fr.igred.omero.IntegratedClient;
 import fr.igred.omero.exception.AccessException;
+import fr.igred.omero.OMEROException;
 import fr.igred.omero.exception.ServiceException;
 import fr.igred.omero.repository.Image2Imaris;
 
@@ -37,7 +37,7 @@ import static fr.igred.omero.repository.Image2Imaris.createImarisDataset;
 
 
 /** Service to handle OMERO and Imaris XT interactions **/
-public class OMEROXTService extends OMEROClient {
+public class OMEROXTService extends IntegratedClient {
 
 
 	/** Imaris library **/
@@ -96,10 +96,10 @@ public class OMEROXTService extends OMEROClient {
 	 * @param imarisIndex The Imaris instance ID index.
 	 *
 	 * @throws OMEROException Cannot connect to OMERO or access data.
-	 * @throws ImarisError    Imaris error.
+	 * @throws OMEROXTException    Imaris error.
 	 */
 	public void loadImage(int imageIndex, int imarisIndex)
-	throws OMEROException, ImarisError {
+	throws OMEROException, OMEROXTException {
 		int imarisID = imarisIDs.get(imarisIndex);
 
 		IServerPrx imarisServer = imarisLib.GetServer();
@@ -111,7 +111,7 @@ public class OMEROXTService extends OMEROClient {
 		} catch (AccessException | ExecutionException e) {
 			throw new OMEROException(e.getMessage(), e);
 		} catch (Error e) {
-			throw new ImarisError(e.getMessage(), e);
+			throw new OMEROXTException(e.getMessage(), e);
 		}
 	}
 
@@ -123,10 +123,10 @@ public class OMEROXTService extends OMEROClient {
 	 * @param imarisIndex The Imaris instance ID index.
 	 *
 	 * @throws OMEROException Cannot connect to OMERO or access data.
-	 * @throws ImarisError    Imaris error.
+	 * @throws OMEROXTException    Imaris error.
 	 */
 	public void loadROIs(int imageIndex, int imarisIndex)
-	throws OMEROException, ImarisError {
+	throws OMEROException, OMEROXTException {
 		int imarisID = imarisIDs.get(imarisIndex);
 
 		IServerPrx vServer = imarisLib.GetServer();
@@ -138,7 +138,7 @@ public class OMEROXTService extends OMEROClient {
 		} catch (ServiceException | AccessException | ExecutionException e) {
 			throw new OMEROException(e.getMessage(), e);
 		} catch (Error e) {
-			throw new ImarisError(e.getMessage(), e);
+			throw new OMEROXTException(e.getMessage(), e);
 		}
 	}
 

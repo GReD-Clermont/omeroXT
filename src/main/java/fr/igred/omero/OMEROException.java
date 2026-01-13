@@ -15,21 +15,22 @@
  * Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-package fr.igred.imaris;
+package fr.igred.omero;
+
+/** Custom exception for OMERO errors. */
+public class OMEROException extends Exception {
+
+	/** Serial version UID. */
+	private static final long serialVersionUID = -5253569698235952641L;
 
 
-/** Test class to launch OMEROXTension from tests. */
-public final class OMEROXTensionTest {
-
-
-	/** Private constructor to prevent instantiation. */
-	private OMEROXTensionTest() {
-	}
-
-
-	/** Main method to launch OMEROXTension. */
-	public static void main(String[] args) {
-		OMEROXTension.main(args);
+	/**
+	 * Constructor with message.
+	 *
+	 * @param message The exception message.
+	 */
+	public OMEROException(String message, Throwable cause) {
+		super(message, cause);
 	}
 
 }

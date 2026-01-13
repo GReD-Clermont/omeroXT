@@ -15,11 +15,8 @@
  * Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-package fr.igred.imaris.omero;
+package fr.igred.omero;
 
-import fr.igred.imaris.exception.OMEROException;
-import fr.igred.omero.Client;
-import fr.igred.omero.GenericObjectWrapper;
 import fr.igred.omero.exception.AccessException;
 import fr.igred.omero.exception.OMEROServerError;
 import fr.igred.omero.exception.ServiceException;
@@ -42,7 +39,7 @@ import java.util.stream.Collectors;
 /**
  * OMERO client to connect and browse through the data.
  */
-public class OMEROClient {
+public class IntegratedClient {
 
 	/** Format string for object qualifier **/
 	private static final String FORMAT = "%%-%ds (ID:%%%dd)";
@@ -129,7 +126,7 @@ public class OMEROClient {
 	private static <T extends GenericObjectWrapper<?>>
 	List<String> formatList(Collection<T> objects, Function<? super T, String> nameMapper) {
 		int padName = getListPadding(objects, o -> nameMapper.apply(o).length());
-		int padId   = getListPadding(objects, OMEROClient::getIDNbDigits) + 1;
+		int padId   = getListPadding(objects, IntegratedClient::getIDNbDigits) + 1;
 
 		return objects.stream()
 		              .map(o -> format(nameMapper.apply(o), o.getId(), padName, padId))
@@ -346,7 +343,7 @@ public class OMEROClient {
 	 *
 	 * @throws OMEROException Cannot connect to OMERO or access data.
 	 */
-	public boolean connect(OMEROConnector connector) throws OMEROException {
+	public boolean connect(Connector connector) throws OMEROException {
 		cleanUp();
 		connector.connect(client);
 		boolean connected = client.isConnected();

@@ -15,5 +15,22 @@
  * Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-/** This package contains custom exception classes for Imaris and OMERO. */
-package fr.igred.imaris.exception;
+package fr.igred.imaris.omero;
+
+/** Custom exception for Imaris OMERO XTension errors. */
+public class OMEROXTException extends Exception {
+
+	/** Serial version UID. */
+	private static final long serialVersionUID = 1129384351609014837L;
+
+
+	/**
+	 * Constructor with message.
+	 *
+	 * @param message The exception message.
+	 */
+	public OMEROXTException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
+}

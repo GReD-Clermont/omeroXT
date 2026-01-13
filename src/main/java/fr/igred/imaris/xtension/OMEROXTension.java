@@ -15,7 +15,7 @@
  * Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-package fr.igred.imaris;
+package fr.igred.imaris.xtension;
 
 import fr.igred.imaris.gui.OMEROXTGui;
 
