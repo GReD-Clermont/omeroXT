@@ -80,7 +80,9 @@ public final class ROI2Imaris {
 			for (int i = 0; i < w; i++) {
 				if (awtShape.contains(i + x, j + y)) {
 					int pos = j * w + i;
-					labels[pos] = value + 1;
+					// If value already set, set it to 0
+					// TODO: handle overlapping shapes differently?
+					labels[pos] = labels[pos] == value + 1 ? 0 : value + 1;
 				}
 			}
 		}
