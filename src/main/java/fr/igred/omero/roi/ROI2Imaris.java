@@ -83,7 +83,7 @@ public final class ROI2Imaris {
 				if (awtShape.contains(i + x, j + y)) {
 					int pos = j * w + i;
 					// If value already set, set it to 0
-					labels[pos] = labels[pos] == value + 1 ? 0 : value + 1;
+					labels[pos] = labels[pos] == value ? 0 : value;
 				}
 			}
 		}
@@ -203,7 +203,7 @@ public final class ROI2Imaris {
 				for (int t = tmin; t <= tmax; t++) {
 					for (int z = zmin; z <= zmax; z++) {
 						int[] labels = label.GetDataSubVolumeAs1DArrayInts(x, y, z, t, w, h, 1);
-						setShapePixels(awtShape, index, x, y, w, h, labels);
+						setShapePixels(awtShape, index + 1, x, y, w, h, labels);
 						label.SetDataSubVolumeAs1DArrayInts(labels, x, y, z, t, w, h, 1);
 					}
 				}
