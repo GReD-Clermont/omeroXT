@@ -33,9 +33,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static fr.igred.omero.repository.Image2Imaris.setSpacing;
 import static java.util.Comparator.comparingInt;
+import static java.util.stream.Collectors.toMap;
 
 
 /**
@@ -81,7 +83,6 @@ public final class ROI2Imaris {
 				if (awtShape.contains(i + x, j + y)) {
 					int pos = j * w + i;
 					// If value already set, set it to 0
-					// TODO: handle overlapping shapes differently?
 					labels[pos] = labels[pos] == value + 1 ? 0 : value + 1;
 				}
 			}
@@ -108,12 +109,9 @@ public final class ROI2Imaris {
 		List<ROIWrapper> rois = image.getROIs(client);
 
 		Map<Long, List<PointWrapper>> points = rois.stream()
-		                                           .collect(Collectors.toMap(ROIWrapper::getId,
-		                                                                     r -> r.getShapes()
-		                                                                           .stream()
-		                                                                           .filter(s -> s instanceof PointWrapper)
-		                                                                           .map(s -> (PointWrapper) s)
-		                                                                           .collect(Collectors.toList())));
+		                                           .collect(toMap(ROIWrapper::getId,
+		                                                          r -> r.getShapes()
+		                                                                .getElementsOf(PointWrapper.class)));
 
 		int numPoints = points.values()
 		                      .stream()
@@ -171,15 +169,18 @@ public final class ROI2Imaris {
 
 		List<ROIWrapper> rois = image.getROIs(client);
 
-		ILabelImagePrx labelImage = app.GetFactory().CreateLabelImage();
-		labelImage.Create(sizeX, sizeY, sizeZ, sizeT);
-		setSpacing(client, image, labelImage);
+		ISurfacesPrx surfaces = app.GetFactory().CreateSurfaces();
 
 		for (int index = 0; index < rois.size(); index++) {
 			ROIWrapper roi    = rois.get(index);
 			ShapeList  shapes = roi.getShapes();
 			shapes.removeIf(s -> s instanceof PointWrapper);
 			shapes.removeIf(s -> s instanceof TextWrapper);
+
+			ILabelImagePrx label = app.GetFactory().CreateLabelImage();
+			label.Create(sizeX, sizeY, sizeZ, sizeT);
+			setSpacing(client, image, label);
+
 			for (GenericShapeWrapper<?> shape : shapes) {
 				int zpos = shape.getZ();
 				int tpos = shape.getT();
@@ -201,15 +202,19 @@ public final class ROI2Imaris {
 
 				for (int t = tmin; t <= tmax; t++) {
 					for (int z = zmin; z <= zmax; z++) {
-						int[] labels = labelImage.GetDataSubVolumeAs1DArrayInts(x, y, z, t, w, h, 1);
+						int[] labels = label.GetDataSubVolumeAs1DArrayInts(x, y, z, t, w, h, 1);
 						setShapePixels(awtShape, index, x, y, w, h, labels);
-						labelImage.SetDataSubVolumeAs1DArrayInts(labels, x, y, z, t, w, h, 1);
+						label.SetDataSubVolumeAs1DArrayInts(labels, x, y, z, t, w, h, 1);
 					}
 				}
 			}
+			ISurfacesPrx s = app.GetImageProcessing().DetectSurfacesFromLabelImage(label);
+			//TODO: handle tracking
+
+			int[] indices = IntStream.range(0, s.GetNumberOfSurfaces()).toArray();
+			s.CopySurfacesToSurfaces(indices, surfaces);
 		}
-		//TODO: handle tracking
-		return app.GetImageProcessing().DetectSurfacesFromLabelImage(labelImage);
+		return surfaces;
 	}
 
 
