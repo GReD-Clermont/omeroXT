@@ -348,13 +348,16 @@ public class OMEROXTGui extends JFrame implements Runnable {
 	 * @return The actions panel.
 	 */
 	private JPanel createActionsPanel() {
-		JPanel  actions   = new JPanel();
-		JButton loadImage = new JButton("Load image");
-		JButton loadROIs  = new JButton("Load ROIs");
+		JPanel  actions      = new JPanel();
+		JButton loadImage    = new JButton("Load image");
+		JButton loadSurfaces = new JButton("Load Surfaces");
+		JButton loadSpots    = new JButton("Load Spots");
 		loadImage.addActionListener(e -> loadImage());
-		loadROIs.addActionListener(e -> loadROIs());
+		loadSurfaces.addActionListener(e -> loadSurfaces());
+		loadSpots.addActionListener(e -> loadSpots());
 		actions.add(loadImage);
-		actions.add(loadROIs);
+		actions.add(loadSurfaces);
+		actions.add(loadSpots);
 		return actions;
 	}
 
@@ -562,15 +565,34 @@ public class OMEROXTGui extends JFrame implements Runnable {
 
 
 	/**
-	 * Loads the ROIs from the selected image into Imaris, as Surfaces.
+	 * Loads the Surfaces ROIs from the selected image into Imaris, as Surfaces.
 	 */
-	private void loadROIs() {
+	private void loadSurfaces() {
 		int imageIndex = imageListIn.getSelectedIndex();
 		int imarisIdx  = imarisList.getSelectedIndex();
 
 		if (imageIndex >= 0 && imarisIdx >= 0) {
 			try {
-				omeroxt.loadROIs(imageIndex, imarisIdx);
+				omeroxt.loadSurfaces(imageIndex, imarisIdx);
+			} catch (OMEROException | OMEROXTException e) {
+				errorWindow(e.getMessage());
+			}
+		} else {
+			warningWindow("No image or Imaris instance selected.");
+		}
+	}
+
+
+	/**
+	 * Loads the Spots ROIs from the selected image into Imaris, as Surfaces.
+	 */
+	private void loadSpots() {
+		int imageIndex = imageListIn.getSelectedIndex();
+		int imarisIdx  = imarisList.getSelectedIndex();
+
+		if (imageIndex >= 0 && imarisIdx >= 0) {
+			try {
+				omeroxt.loadSpots(imageIndex, imarisIdx);
 			} catch (OMEROException | OMEROXTException e) {
 				errorWindow(e.getMessage());
 			}

@@ -117,7 +117,7 @@ public class OMEROXTService extends IntegratedClient {
 
 
 	/**
-	 * Loads the ROIs of the selected image into the specified Imaris instance.
+	 * Loads the Surfaces ROIs of the selected image into the specified Imaris instance.
 	 *
 	 * @param imageIndex  The index of the image to load.
 	 * @param imarisIndex The Imaris instance ID index.
@@ -125,7 +125,7 @@ public class OMEROXTService extends IntegratedClient {
 	 * @throws OMEROException   Cannot connect to OMERO or access data.
 	 * @throws OMEROXTException Imaris error.
 	 */
-	public void loadROIs(int imageIndex, int imarisIndex)
+	public void loadSurfaces(int imageIndex, int imarisIndex)
 	throws OMEROException, OMEROXTException {
 		int imarisID = imarisIDs.get(imarisIndex);
 
@@ -134,7 +134,34 @@ public class OMEROXTService extends IntegratedClient {
 		IApplicationPrx vApplication = checkedCast(vServer.GetObject(imarisID));
 
 		try {
-			ROI2Imaris.loadROIs(client, getUserImage(imageIndex), vApplication);
+			ROI2Imaris.loadSurfaces(client, getUserImage(imageIndex), vApplication);
+		} catch (ServiceException | AccessException | ExecutionException e) {
+			throw new OMEROException(e.getMessage(), e);
+		} catch (Error e) {
+			throw new OMEROXTException(e.getMessage(), e);
+		}
+	}
+
+
+	/**
+	 * Loads the Surfaces ROIs of the selected image into the specified Imaris instance.
+	 *
+	 * @param imageIndex  The index of the image to load.
+	 * @param imarisIndex The Imaris instance ID index.
+	 *
+	 * @throws OMEROException   Cannot connect to OMERO or access data.
+	 * @throws OMEROXTException Imaris error.
+	 */
+	public void loadSpots(int imageIndex, int imarisIndex)
+	throws OMEROException, OMEROXTException {
+		int imarisID = imarisIDs.get(imarisIndex);
+
+		IServerPrx vServer = imarisLib.GetServer();
+
+		IApplicationPrx vApplication = checkedCast(vServer.GetObject(imarisID));
+
+		try {
+			ROI2Imaris.loadSpots(client, getUserImage(imageIndex), vApplication);
 		} catch (ServiceException | AccessException | ExecutionException e) {
 			throw new OMEROException(e.getMessage(), e);
 		} catch (Error e) {

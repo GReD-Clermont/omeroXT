@@ -219,7 +219,7 @@ public final class ROI2Imaris {
 
 
 	/**
-	 * Loads the ROIs of the image into an Imaris Surfaces object.
+	 * Loads the compatible ROIs of the image into an Imaris Surfaces object.
 	 *
 	 * @param client The OMERO client.
 	 * @param image  The OMERO image.
@@ -230,11 +230,27 @@ public final class ROI2Imaris {
 	 * @throws ExecutionException If there is an execution error.
 	 * @throws Error              If there is an Imaris error.
 	 */
-	public static void loadROIs(Client client, ImageWrapper image, IApplicationPrx app)
-	throws AccessException, ServiceException, ExecutionException, Error {
+	public static void loadSurfaces(Client client, ImageWrapper image, IApplicationPrx app)
+	throws Error, AccessException, ServiceException, ExecutionException {
 		ISurfacesPrx surfaces = roisToSurfaces(client, image, app);
 		app.GetSurpassScene().AddChild(surfaces, -1);
+	}
 
+
+	/**
+	 * Loads the compatible ROIs of the image into an Imaris Spots object.
+	 *
+	 * @param client The OMERO client.
+	 * @param image  The OMERO image.
+	 * @param app    The Imaris application proxy.
+	 *
+	 * @throws AccessException    If there is an access error.
+	 * @throws ServiceException   If there is a service error.
+	 * @throws ExecutionException If there is an execution error.
+	 * @throws Error              If there is an Imaris error.
+	 */
+	public static void loadSpots(Client client, ImageWrapper image, IApplicationPrx app)
+	throws AccessException, ServiceException, ExecutionException, Error {
 		ISpotsPrx spots = pointsToSpots(client, image, app);
 		app.GetSurpassScene().AddChild(spots, -1);
 	}
