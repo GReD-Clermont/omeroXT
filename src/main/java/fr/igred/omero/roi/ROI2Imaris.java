@@ -174,8 +174,12 @@ public final class ROI2Imaris {
 		for (int index = 0; index < rois.size(); index++) {
 			ROIWrapper roi    = rois.get(index);
 			ShapeList  shapes = roi.getShapes();
+
+			// Remove open shapes that cannot be converted to surfaces
 			shapes.removeIf(s -> s instanceof PointWrapper);
 			shapes.removeIf(s -> s instanceof TextWrapper);
+			shapes.removeIf(s -> s instanceof LineWrapper);
+			shapes.removeIf(s -> s instanceof PolylineWrapper);
 
 			ILabelImagePrx label = app.GetFactory().CreateLabelImage();
 			label.Create(sizeX, sizeY, sizeZ, sizeT);
