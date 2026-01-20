@@ -19,6 +19,7 @@ package fr.igred.omero.roi;
 
 import Imaris.Error;
 import Imaris.IApplicationPrx;
+import Imaris.IDataContainerPrx;
 import Imaris.ILabelImagePrx;
 import Imaris.ISpotsPrx;
 import Imaris.ISurfacesPrx;
@@ -33,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static fr.igred.omero.repository.Image2Imaris.setSpacing;
 import static java.util.Comparator.comparingInt;
@@ -84,6 +84,65 @@ public final class ROI2Imaris {
 					int pos = j * w + i;
 					// If value already set, set it to 0
 					labels[pos] = labels[pos] == value ? 0 : value;
+				}
+			}
+		}
+	}
+
+
+	/**
+	 * Sets the pixel value of a ROI in a label image.
+	 *
+	 * @param roi   The ROI to convert.
+	 * @param label The label image.
+	 * @param sizeX The size in X.
+	 * @param sizeY The size in Y.
+	 * @param sizeZ The size in Z.
+	 * @param sizeT The size in T.
+	 * @param index The label index.
+	 *
+	 * @throws Error If there is an Imaris error.
+	 */
+	private static void roiToLabel(ROIWrapper roi,
+	                               ILabelImagePrx label,
+	                               int sizeX,
+	                               int sizeY,
+	                               int sizeZ,
+	                               int sizeT,
+	                               int index)
+	throws Error {
+		ShapeList shapes = roi.getShapes();
+
+		// Remove open shapes that cannot be converted to surfaces
+		shapes.removeIf(s -> s instanceof PointWrapper);
+		shapes.removeIf(s -> s instanceof TextWrapper);
+		shapes.removeIf(s -> s instanceof LineWrapper);
+		shapes.removeIf(s -> s instanceof PolylineWrapper);
+
+		for (GenericShapeWrapper<?> shape : shapes) {
+			int zpos = shape.getZ();
+			int tpos = shape.getT();
+
+			int zmin = Math.max(zpos, 0);
+			int zmax = zpos >= 0 ? zpos : sizeZ - 1;
+
+			int tmin = Math.max(tpos, 0);
+			int tmax = tpos >= 0 ? tpos : sizeT - 1;
+
+			Shape awtShape = shape.createTransformedAWTShape();
+
+			Rectangle2D bounds = awtShape.getBounds2D();
+
+			int x = clamp((int) bounds.getX(), sizeX - 1);
+			int y = clamp((int) bounds.getY(), sizeY - 1);
+			int w = clamp((int) bounds.getWidth(), sizeX - x - 1);
+			int h = clamp((int) bounds.getHeight(), sizeY - y - 1);
+
+			for (int t = tmin; t <= tmax; t++) {
+				for (int z = zmin; z <= zmax; z++) {
+					int[] labels = label.GetDataSubVolumeAs1DArrayInts(x, y, z, t, w, h, 1);
+					setShapePixels(awtShape, index + 1, x, y, w, h, labels);
+					label.SetDataSubVolumeAs1DArrayInts(labels, x, y, z, t, w, h, 1);
 				}
 			}
 		}
@@ -169,56 +228,80 @@ public final class ROI2Imaris {
 
 		List<ROIWrapper> rois = image.getROIs(client);
 
-		ISurfacesPrx surfaces = app.GetFactory().CreateSurfaces();
+		ILabelImagePrx label = app.GetFactory().CreateLabelImage();
+		label.Create(sizeX, sizeY, sizeZ, sizeT);
+		setSpacing(client, image, label);
 
 		for (int index = 0; index < rois.size(); index++) {
-			ROIWrapper roi    = rois.get(index);
-			ShapeList  shapes = roi.getShapes();
+			ROIWrapper roi = rois.get(index);
 
-			// Remove open shapes that cannot be converted to surfaces
-			shapes.removeIf(s -> s instanceof PointWrapper);
-			shapes.removeIf(s -> s instanceof TextWrapper);
-			shapes.removeIf(s -> s instanceof LineWrapper);
-			shapes.removeIf(s -> s instanceof PolylineWrapper);
+			roiToLabel(roi, label, sizeX, sizeY, sizeZ, sizeT, index);
+
+			//TODO: handle tracking
+		}
+		return app.GetImageProcessing().DetectSurfacesFromLabelImage(label);
+	}
+
+
+	/**
+	 * Converts the ROIs from an image to an Imaris Surfaces object.
+	 *
+	 * @param client The OMERO client.
+	 * @param image  The OMERO image.
+	 * @param app    The Imaris application proxy.
+	 *
+	 * @return The Imaris Surfaces object.
+	 *
+	 * @throws AccessException    If there is an access error.
+	 * @throws ServiceException   If there is a service error.
+	 * @throws ExecutionException If there is an execution error.
+	 * @throws Error              If there is an Imaris error.
+	 */
+	public static IDataContainerPrx roisToSplitSurfaces(Client client, ImageWrapper image, IApplicationPrx app)
+	throws Error, AccessException, ServiceException, ExecutionException {
+		int sizeX = image.getPixels().getSizeX();
+		int sizeY = image.getPixels().getSizeY();
+		int sizeZ = image.getPixels().getSizeZ();
+		int sizeT = image.getPixels().getSizeT();
+
+		IDataContainerPrx container = app.GetFactory().CreateDataContainer();
+
+		List<ROIWrapper> rois = image.getROIs(client);
+		for (int index = 0; index < rois.size(); index++) {
+			ROIWrapper roi = rois.get(index);
 
 			ILabelImagePrx label = app.GetFactory().CreateLabelImage();
 			label.Create(sizeX, sizeY, sizeZ, sizeT);
 			setSpacing(client, image, label);
 
-			for (GenericShapeWrapper<?> shape : shapes) {
-				int zpos = shape.getZ();
-				int tpos = shape.getT();
+			roiToLabel(roi, label, sizeX, sizeY, sizeZ, sizeT, index);
 
-				int zmin = Math.max(zpos, 0);
-				int zmax = zpos >= 0 ? zpos : sizeZ - 1;
-
-				int tmin = Math.max(tpos, 0);
-				int tmax = tpos >= 0 ? tpos : sizeT - 1;
-
-				Shape awtShape = shape.createTransformedAWTShape();
-
-				Rectangle2D bounds = awtShape.getBounds2D();
-
-				int x = clamp((int) bounds.getX(), sizeX - 1);
-				int y = clamp((int) bounds.getY(), sizeY - 1);
-				int w = clamp((int) bounds.getWidth(), sizeX - x - 1);
-				int h = clamp((int) bounds.getHeight(), sizeY - y - 1);
-
-				for (int t = tmin; t <= tmax; t++) {
-					for (int z = zmin; z <= zmax; z++) {
-						int[] labels = label.GetDataSubVolumeAs1DArrayInts(x, y, z, t, w, h, 1);
-						setShapePixels(awtShape, index + 1, x, y, w, h, labels);
-						label.SetDataSubVolumeAs1DArrayInts(labels, x, y, z, t, w, h, 1);
-					}
-				}
-			}
-			ISurfacesPrx s = app.GetImageProcessing().DetectSurfacesFromLabelImage(label);
 			//TODO: handle tracking
 
-			int[] indices = IntStream.range(0, s.GetNumberOfSurfaces()).toArray();
-			s.CopySurfacesToSurfaces(indices, surfaces);
+			ISurfacesPrx s = app.GetImageProcessing().DetectSurfacesFromLabelImage(label);
+			s.SetName(roi.getName());
+			container.AddChild(s, -1);
 		}
-		return surfaces;
+		return container;
+	}
+
+
+	/**
+	 * Loads the compatible ROIs of the image into an Imaris Spots object.
+	 *
+	 * @param client The OMERO client.
+	 * @param image  The OMERO image.
+	 * @param app    The Imaris application proxy.
+	 *
+	 * @throws AccessException    If there is an access error.
+	 * @throws ServiceException   If there is a service error.
+	 * @throws ExecutionException If there is an execution error.
+	 * @throws Error              If there is an Imaris error.
+	 */
+	public static void loadSpots(Client client, ImageWrapper image, IApplicationPrx app)
+	throws AccessException, ServiceException, ExecutionException, Error {
+		ISpotsPrx spots = pointsToSpots(client, image, app);
+		app.GetSurpassScene().AddChild(spots, -1);
 	}
 
 
@@ -242,7 +325,7 @@ public final class ROI2Imaris {
 
 
 	/**
-	 * Loads the compatible ROIs of the image into an Imaris Spots object.
+	 * Loads the compatible ROIs of the image into Imaris Surfaces objects, one by one.
 	 *
 	 * @param client The OMERO client.
 	 * @param image  The OMERO image.
@@ -253,10 +336,10 @@ public final class ROI2Imaris {
 	 * @throws ExecutionException If there is an execution error.
 	 * @throws Error              If there is an Imaris error.
 	 */
-	public static void loadSpots(Client client, ImageWrapper image, IApplicationPrx app)
+	public static void loadSplitSurfaces(Client client, ImageWrapper image, IApplicationPrx app)
 	throws AccessException, ServiceException, ExecutionException, Error {
-		ISpotsPrx spots = pointsToSpots(client, image, app);
-		app.GetSurpassScene().AddChild(spots, -1);
+		IDataContainerPrx container = roisToSplitSurfaces(client, image, app);
+		app.GetSurpassScene().AddChild(container, -1);
 	}
 
 }

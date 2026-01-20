@@ -348,16 +348,19 @@ public class OMEROXTGui extends JFrame implements Runnable {
 	 * @return The actions panel.
 	 */
 	private JPanel createActionsPanel() {
-		JPanel  actions      = new JPanel();
-		JButton loadImage    = new JButton("Load image");
-		JButton loadSurfaces = new JButton("Load Surfaces");
-		JButton loadSpots    = new JButton("Load Spots");
+		JPanel  actions           = new JPanel();
+		JButton loadImage         = new JButton("Load Image");
+		JButton loadSpots         = new JButton("Load Spots");
+		JButton loadSurfaces      = new JButton("Load Surfaces");
+		JButton loadSplitSurfaces = new JButton("Load Surfaces (Split)");
 		loadImage.addActionListener(e -> loadImage());
-		loadSurfaces.addActionListener(e -> loadSurfaces());
 		loadSpots.addActionListener(e -> loadSpots());
+		loadSurfaces.addActionListener(e -> loadSurfaces());
+		loadSplitSurfaces.addActionListener(e -> loadSplitSurfaces());
 		actions.add(loadImage);
-		actions.add(loadSurfaces);
 		actions.add(loadSpots);
+		actions.add(loadSurfaces);
+		actions.add(loadSplitSurfaces);
 		return actions;
 	}
 
@@ -565,6 +568,25 @@ public class OMEROXTGui extends JFrame implements Runnable {
 
 
 	/**
+	 * Loads the Spots ROIs from the selected image into Imaris, as Surfaces.
+	 */
+	private void loadSpots() {
+		int imageIndex = imageListIn.getSelectedIndex();
+		int imarisIdx  = imarisList.getSelectedIndex();
+
+		if (imageIndex >= 0 && imarisIdx >= 0) {
+			try {
+				omeroxt.loadSpots(imageIndex, imarisIdx);
+			} catch (OMEROException | OMEROXTException e) {
+				errorWindow(e.getMessage());
+			}
+		} else {
+			warningWindow("No image or Imaris instance selected.");
+		}
+	}
+
+
+	/**
 	 * Loads the Surfaces ROIs from the selected image into Imaris, as Surfaces.
 	 */
 	private void loadSurfaces() {
@@ -584,15 +606,15 @@ public class OMEROXTGui extends JFrame implements Runnable {
 
 
 	/**
-	 * Loads the Spots ROIs from the selected image into Imaris, as Surfaces.
+	 * Loads the Surfaces ROIs from the selected image into Imaris, in a Surfaces Container.
 	 */
-	private void loadSpots() {
+	private void loadSplitSurfaces() {
 		int imageIndex = imageListIn.getSelectedIndex();
 		int imarisIdx  = imarisList.getSelectedIndex();
 
 		if (imageIndex >= 0 && imarisIdx >= 0) {
 			try {
-				omeroxt.loadSpots(imageIndex, imarisIdx);
+				omeroxt.loadSplitSurfaces(imageIndex, imarisIdx);
 			} catch (OMEROException | OMEROXTException e) {
 				errorWindow(e.getMessage());
 			}
