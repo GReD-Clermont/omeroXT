@@ -79,6 +79,6 @@ This project is licensed under the [GNU General Public License v2.0+](LICENSE).
 
 ## Links
 
-- **Repository**: <https://github.com/GReD-Clermont/OMEROXT>
-- **Issues**: <https://github.com/GReD-Clermont/OMEROXT/issues>
+- **Repository**: <https://github.com/GReD-Clermont/omeroXT>
+- **Issues**: <https://github.com/GReD-Clermont/omeroXT/issues>
 - **Image.sc Forum**: <https://forum.image.sc/tag/omero>
