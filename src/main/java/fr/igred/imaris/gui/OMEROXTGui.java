@@ -480,20 +480,24 @@ public class OMEROXTGui extends JFrame implements Runnable {
 	private void connect(JLabel connectionStatus) {
 		Color green = new Color(0, 153, 0);
 
+		boolean connected = false;
+
 		Connector connectDialog = new OMEROConnectDialog();
 		try {
-			omeroxt.connect(connectDialog);
+			connected = omeroxt.connect(connectDialog);
 		} catch (OMEROException ex) {
 			errorWindow(ex.getMessage());
 		}
-		int groupIndex = omeroxt.getGroupIndex(omeroxt.getCurrentGroupId());
+		if (connected) {
+			int groupIndex = omeroxt.getGroupIndex(omeroxt.getCurrentGroupId());
 
-		updateBox(omeroxt.getGroupNames(), groupList, groupIndex);
+			updateBox(omeroxt.getGroupNames(), groupList, groupIndex);
 
-		connectionStatus.setText("Connected");
-		connectionStatus.setForeground(green);
-		connect.setVisible(false);
-		disconnect.setVisible(true);
+			connectionStatus.setText("Connected");
+			connectionStatus.setForeground(green);
+			connect.setVisible(false);
+			disconnect.setVisible(true);
+		}
 	}
 
 

@@ -17,8 +17,8 @@
 
 package fr.igred.imaris.gui;
 
-import fr.igred.omero.Connector;
 import fr.igred.omero.Client;
+import fr.igred.omero.Connector;
 import fr.igred.omero.exception.ServiceException;
 
 import javax.swing.BorderFactory;
@@ -37,6 +37,7 @@ import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.text.NumberFormat;
+import java.util.prefs.Preferences;
 
 import static javax.swing.JOptionPane.showMessageDialog;
 
@@ -45,6 +46,14 @@ import static javax.swing.JOptionPane.showMessageDialog;
  * Connection dialogue for OMERO.
  */
 public class OMEROConnectDialog extends JDialog implements ActionListener, Connector {
+
+	/** Preference keys. */
+	private static final String PREF_HOST = "hostname";
+	private static final String PREF_PORT = "port";
+	private static final String PREF_USER = "username";
+
+	/** Retrieve the user preference node for this class */
+	private static final Preferences prefs = Preferences.userNodeForPackage(OMEROConnectDialog.class);
 
 	/** Host field. */
 	private final JTextField          hostField     = new JTextField("");
@@ -60,7 +69,7 @@ public class OMEROConnectDialog extends JDialog implements ActionListener, Conne
 	private final JButton             cancel        = new JButton("Cancel");
 
 	/** The client to connect. */
-	private Client  client    = new Client();
+	private Client client = new Client();
 
 
 	/**
@@ -70,8 +79,11 @@ public class OMEROConnectDialog extends JDialog implements ActionListener, Conne
 		final int width  = 350;
 		final int height = 200;
 
-		final String defaultHost = "omero.igred.fr";
-		final int    defaultPort = 4064;
+		/* Load preferences. */
+		String username = prefs.get(PREF_USER, "");
+		String host     = prefs.get(PREF_HOST, "localhost");
+		//noinspection MagicNumber
+		int port = prefs.getInt(PREF_PORT, 4064);
 
 		super.setModal(true);
 		super.setTitle("Connection to OMERO");
@@ -96,16 +108,17 @@ public class OMEROConnectDialog extends JDialog implements ActionListener, Conne
 		JLabel hostLabel = new JLabel("Host:");
 		panelInfo1.add(hostLabel);
 		panelInfo2.add(hostField);
-		hostField.setText(defaultHost);
+		hostField.setText(host);
 
 		JLabel portLabel = new JLabel("Port:");
 		panelInfo1.add(portLabel);
 		panelInfo2.add(portField);
-		portField.setValue(defaultPort);
+		portField.setValue(port);
 
 		JLabel userLabel = new JLabel("User:");
 		panelInfo1.add(userLabel);
 		panelInfo2.add(userField);
+		userField.setText(username);
 
 		JLabel passwdLabel = new JLabel("Password:");
 		panelInfo1.add(passwdLabel);
@@ -152,6 +165,10 @@ public class OMEROConnectDialog extends JDialog implements ActionListener, Conne
 			int    port     = (Integer) this.portField.getValue();
 			String username = this.userField.getText();
 			char[] password = this.passwordField.getPassword();
+			/* Save preferences. */
+			prefs.put(PREF_HOST, host);
+			prefs.putInt(PREF_PORT, port);
+			prefs.put(PREF_USER, username);
 			try {
 				client.connect(host, port, username, password);
 				dispose();
