@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2020-2025 GReD
+ *  Copyright (C) 2020-2026 GReD
  *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -18,42 +18,72 @@
 package fr.igred.imaris.gui;
 
 import fr.igred.omero.Client;
+import fr.igred.omero.Connector;
 import fr.igred.omero.exception.ServiceException;
 
-import javax.swing.*;
+import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JDialog;
+import javax.swing.JFormattedTextField;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JTextField;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.text.NumberFormat;
+import java.util.prefs.Preferences;
 
 import static javax.swing.JOptionPane.showMessageDialog;
 
-/**
- * Connection dialog for OMERO.
- */
-public class OMEROConnectDialog extends JDialog implements ActionListener {
 
-	private final     JTextField          hostField     = new JTextField("");
-	private final     JFormattedTextField portField     = new JFormattedTextField(NumberFormat.getIntegerInstance());
-	private final     JTextField          userField     = new JTextField("");
-	private final     JPasswordField      passwordField = new JPasswordField("");
-	private final     JButton             login         = new JButton("Login");
-	private final     JButton             cancel        = new JButton("Cancel");
-	private transient Client              client;
-	private           boolean             cancelled     = false;
+/**
+ * Connection dialogue for OMERO.
+ */
+public class OMEROConnectDialog extends JDialog implements ActionListener, Connector {
+
+	/** Preference keys. */
+	private static final String PREF_HOST = "hostname";
+	private static final String PREF_PORT = "port";
+	private static final String PREF_USER = "username";
+
+	/** Retrieve the user preference node for this class */
+	private static final Preferences prefs = Preferences.userNodeForPackage(OMEROConnectDialog.class);
+
+	/** Host field. */
+	private final JTextField          hostField     = new JTextField("");
+	/** Port field. */
+	private final JFormattedTextField portField     = new JFormattedTextField(NumberFormat.getIntegerInstance());
+	/** User field. */
+	private final JTextField          userField     = new JTextField("");
+	/** Password field. */
+	private final JPasswordField      passwordField = new JPasswordField("");
+	/** Login button. */
+	private final JButton             login         = new JButton("Login");
+	/** Cancel button. */
+	private final JButton             cancel        = new JButton("Cancel");
+
+	/** The client to connect. */
+	private Client client = new Client();
 
 
 	/**
-	 * Creates a new dialog to connect the specified client, but does not display it.
+	 * Creates a new dialogue to connect the specified client, but does not display it.
 	 */
 	public OMEROConnectDialog() {
 		final int width  = 350;
 		final int height = 200;
 
-		final String defaultHost = "omero.igred.fr";
-		final int    defaultPort = 4064;
+		/* Load preferences. */
+		String username = prefs.get(PREF_USER, "");
+		String host     = prefs.get(PREF_HOST, "localhost");
+		//noinspection MagicNumber
+		int port = prefs.getInt(PREF_PORT, 4064);
 
 		super.setModal(true);
 		super.setTitle("Connection to OMERO");
@@ -78,16 +108,17 @@ public class OMEROConnectDialog extends JDialog implements ActionListener {
 		JLabel hostLabel = new JLabel("Host:");
 		panelInfo1.add(hostLabel);
 		panelInfo2.add(hostField);
-		hostField.setText(defaultHost);
+		hostField.setText(host);
 
 		JLabel portLabel = new JLabel("Port:");
 		panelInfo1.add(portLabel);
 		panelInfo2.add(portField);
-		portField.setValue(defaultPort);
+		portField.setValue(port);
 
 		JLabel userLabel = new JLabel("User:");
 		panelInfo1.add(userLabel);
 		panelInfo2.add(userField);
+		userField.setText(username);
 
 		JLabel passwdLabel = new JLabel("Password:");
 		panelInfo1.add(passwdLabel);
@@ -112,6 +143,7 @@ public class OMEROConnectDialog extends JDialog implements ActionListener {
 	 *
 	 * @param c The client.
 	 */
+	@Override
 	public void connect(Client c) {
 		this.client = c;
 		login.addActionListener(this);
@@ -128,12 +160,15 @@ public class OMEROConnectDialog extends JDialog implements ActionListener {
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		Object source = e.getSource();
-		if (source==login) {
-			cancelled = false;
+		if (source == login) {
 			String host     = this.hostField.getText();
 			int    port     = (Integer) this.portField.getValue();
 			String username = this.userField.getText();
 			char[] password = this.passwordField.getPassword();
+			/* Save preferences. */
+			prefs.put(PREF_HOST, host);
+			prefs.putInt(PREF_PORT, port);
+			prefs.put(PREF_USER, username);
 			try {
 				client.connect(host, port, username, password);
 				dispose();
@@ -154,20 +189,9 @@ public class OMEROConnectDialog extends JDialog implements ActionListener {
 				}
 				showMessageDialog(null, message, "Error", JOptionPane.ERROR_MESSAGE);
 			}
-		} else if (source==cancel) {
-			cancelled = true;
+		} else if (source == cancel) {
 			dispose();
 		}
-	}
-
-
-	/**
-	 * Specifies if cancel button was chosen.
-	 *
-	 * @return True if cancel was pressed.
-	 */
-	public boolean wasCancelled() {
-		return cancelled;
 	}
 
 }

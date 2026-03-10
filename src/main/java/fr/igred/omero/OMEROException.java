@@ -14,8 +14,23 @@
  * this program; if not, write to the Free Software Foundation, Inc., 51 Franklin
  * Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-/**
- * This package contains classes and interfaces for building graphical user interfaces (GUIs) to interact with the
- * Imaris software.
- */
-package fr.igred.imaris.gui;
+
+package fr.igred.omero;
+
+/** Custom exception for OMERO errors. */
+public class OMEROException extends Exception {
+
+	/** Serial version UID. */
+	private static final long serialVersionUID = -5253569698235952641L;
+
+
+	/**
+	 * Constructor with message.
+	 *
+	 * @param message The exception message.
+	 */
+	public OMEROException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
+}

@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2020-2025 GReD
+ *  Copyright (C) 2020-2026 GReD
  *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -15,13 +15,34 @@
  * Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-package fr.igred.imaris.gui;
+package fr.igred.imaris.xtension;
+
+import fr.igred.imaris.gui.OMEROXTGui;
 
 
-public class OMEROXTTest {
+/** Main class for the OMERO XTension. */
+public final class OMEROXTension {
 
+
+	/** Private constructor to prevent instantiation. */
+	private OMEROXTension() {
+	}
+
+
+	/**
+	 * Main entry point.
+	 *
+	 * @param args Command line arguments.
+	 */
 	public static void main(String[] args) {
-		OMEROXT.main(args);
+		if (args != null && args.length > 0) {
+			int      imarisID = Integer.parseInt(args[0]);
+			Runnable omeroxt  = new OMEROXTGui(imarisID);
+			omeroxt.run();
+		} else {
+			Runnable omeroxt = new OMEROXTGui();
+			omeroxt.run();
+		}
 	}
 
 }

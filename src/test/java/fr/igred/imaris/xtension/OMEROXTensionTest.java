@@ -14,8 +14,22 @@
  * this program; if not, write to the Free Software Foundation, Inc., 51 Franklin
  * Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-/**
- * This package contains classes and interfaces for building graphical user interfaces (GUIs) to interact with the
- * Imaris software.
- */
-package fr.igred.imaris.gui;
+
+package fr.igred.imaris.xtension;
+
+
+/** Test class to launch OMEROXTension from tests. */
+public final class OMEROXTensionTest {
+
+
+	/** Private constructor to prevent instantiation. */
+	private OMEROXTensionTest() {
+	}
+
+
+	/** Main method to launch OMEROXTension. */
+	public static void main(String[] args) {
+		OMEROXTension.main(args);
+	}
+
+}
